@@ -1,19 +1,13 @@
 from fastapi import FastAPI, Depends, HTTPException
 from sqlalchemy.orm import Session
-from . import models, database, schemas, crud, database
+from . import models, schemas, crud
+from .database import engine, Base, get_db
+
+#Create database tables if not already created
+Base.metadata.create_all(bind=engine)
 
 #Initialize app
 app = FastAPI()
-
-#Create database tables if not already created
-models.Base.metadata.create_all(bind=database.engine)
-
-def get_db():
-    db = database.SessionLocal()
-    try:
-        yield db
-    finally:
-        db.close
 
 #Create a job
 @app.post("/jobs/", response_model=schemas.Job)
@@ -25,6 +19,32 @@ def create_job_route(job: schemas.JobCreate, db: Session = Depends(get_db)):
 def read_jobs(skip: int = 0, limit: int = 100, db: Session = Depends(get_db)):
     jobs = crud.get_jobs(db, skip=skip, limit=limit)
     return jobs
+
+#Search job by criteria
+@app.get("/jobs/search", response_model=list[schemas.Job])
+def search_jobs(
+    company: str = None,  # type: ignore
+    title: str = None,  # type: ignore
+    location: str = None,  # type: ignore
+    status: str = None,  # type: ignore
+    skip: int = 0,
+    limit: int = 100,
+    sort_by: str = "applied_date",
+    sort_desc: bool = True,
+    db: Session = Depends(get_db)): 
+    if not hasattr(models.Job, sort_by):
+        raise HTTPException(status_code=400, detail=f"Invalid sort field: {sort_by}")
+    return crud.get_jobs_by_filters(
+        db=db, 
+        company=company, 
+        title=title, 
+        location=location, 
+        status=status,
+        skip=skip,
+        limit=limit,
+        sort_by=sort_by,
+        sort_desc=sort_desc
+    )
 
 #Get single job
 @app.get("/jobs/{job_id}", response_model=schemas.Job)
@@ -42,31 +62,14 @@ def delete_job_route(job_id: int, db: Session = Depends(get_db)):
         raise HTTPException(status_code=404, detail = "Job not found")
     return crud.delete_job(db=db, job_id=job_id)
 
-#Search job by criteria
-@app.get("/jobs/search", response_model=list[schemas.Job])
-def search_jobs(
-    company: str = None,  # type: ignore
-    title: str = None,  # type: ignore
-    location: str = None,  # type: ignore
-    status: str = None,  # type: ignore
-    skip: int = 0,
-    limit: int = 100,
-    sort_by: str = "application_date",
-    sort_desc: bool = True,
-    db: Session = Depends(get_db)): 
-    if not hasattr(models.Job, sort_by):
-        raise HTTPException(status_code=400, detail=f"Invalid sort field: {sort_by}")
-    return crud.get_jobs_by_filters(
-        db=db, 
-        company=company, 
-        title=title, 
-        location=location, 
-        status=status,
-        skip=skip,
-        limit=limit,
-        sort_by=sort_by,
-        sort_desc=sort_desc
-    )
+#Update a job
+@app.put("/jobs/{job_id}", response_model=schemas.Job)
+def update_job(job_id: int, job_update: schemas.JobUpdate, db: Session = Depends(get_db)):
+    job = crud.update_job(db=db, job_id=job_id,job_update=job_update)
+    if not job:
+        raise HTTPException(status_code=404, detail= "Job not found")
+    return job
+
 
 @app.get("/")
 def root():

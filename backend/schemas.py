@@ -1,13 +1,13 @@
 from pydantic import BaseModel 
 from typing import Optional 
-from datetime import date
+from datetime import date, datetime
 
 class JobBase(BaseModel):
     title: str
     company: str
     location: str
     description: Optional[str] = None
-    date_applied: Optional[date] = None
+    applied_date: Optional[date] = None
     follow_up_date: Optional[date] = None
     resume_path: Optional[str] = None
     status : Optional[str] = "Applied"
@@ -24,7 +24,7 @@ class JobUpdate(JobBase):
     company: Optional[str] = None
     location: Optional[str] = None
     description: Optional[str] = None
-    date_applied: Optional[date] = None
+    applied_date: Optional[date] = None
     follow_up_date: Optional[date] = None
     resume_path: Optional[str] = None
     status : Optional[str] = None
@@ -35,8 +35,8 @@ class JobUpdate(JobBase):
     
 class Job(JobBase):
     id: int
-    created_at: date
-    updated_at: date
+    created_at: datetime
+    updated_at: datetime
     class Config:
         orm_mode = True
 

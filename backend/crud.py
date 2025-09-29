@@ -16,7 +16,7 @@ def create_job(db: Session, job: schemas.JobCreate):
         company=job.company,
         location=job.location,
         status=job.status,
-        application_date=job.date_applied,
+        applied_date=job.applied_date,
         follow_up_date=job.follow_up_date,
         job_link=job.job_link,
         job_description=job.description,
@@ -86,5 +86,4 @@ def get_jobs_by_filters(
         if sort_desc: 
             column = column.desc()
         query = query.order_by(column)
-    
     return query.offset(skip).limit(limit).all()
