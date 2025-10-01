@@ -1,0 +1,4 @@
+@import "tailwindcss";
+:root {
+  --color-brand: #3b82f6; /* Tailwind blue */
+}
