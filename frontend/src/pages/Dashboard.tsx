@@ -1,11 +1,15 @@
 import { useEffect, useState } from "react";
-import { listJobs } from "../api/jobs";
+import { deleteJob, listJobs } from "../api/jobs";
 import type { Job } from "../types/job";
 import JobForm from "../components/JobForm";
+import Modal from "../components/Modal";
+import JobTable from "../components/JobTable";
 
 export default function Dashboard() {
   const [jobs, setJobs] = useState<Job[]>([]);
-  const [refreshkey, setRefreshKey] = useState(0);
+  const [refreshKey, setRefreshKey] = useState(0);
+  const [showModal, setShowModal] = useState(false);
+  const [editingJob, setEditingJob] = useState<Job | null>(null);
 
   useEffect(() => {
     async function loadJobs() {
@@ -13,48 +17,52 @@ export default function Dashboard() {
       setJobs(data);
     }
     loadJobs();
-  }, [refreshkey]);
+  }, [refreshKey]);
 
   return (
-    <div className="p-6">
+    <div className="min-h-screen w-full bg-gray-50 p-4">
         <h1 className="text-2xl font-bold mb-4">Job Tracker</h1>
+        {/*Add Job Button*/}
+        <button 
+            onClick={() => setShowModal(true)}
+            className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700"
+        >
+            Add Job
+        </button>
 
-        {/* Job Form */}
-        <JobForm onJobAdded={() => setRefreshKey(refreshkey + 1)} />
+        {/* Modal with Job Form*/}
+        {showModal && (
+            <Modal onClose={() => setShowModal(false)}>
+                <JobForm
+                    onCreated={() => {
+                        setRefreshKey((k) => k + 1);
+                        setShowModal(false);
+                    }}
+                />
+            </Modal>
+        )}
 
         {/* Jobs List*/}
-        <table className="min-w-full bg-white rounded shadow">
-        <thead>
-            <tr className="bg-gray-100">
-            <th className="px-4 py-2 text-left">Job Title</th>
-            <th className="px-4 py-2 text-left">Company</th>
-            <th className="px-4 py-2 text-left">Location</th>
-            <th className="px-4 py-2 text-left">Status</th>
-            <th className="px-4 py-2 text-left">Date Applied</th>
-            <th className="px-4 py-2 text-left">Job Link</th>
-            </tr>
-        </thead>
-        <tbody>
-            {jobs.length === 0 ? (
-            <tr>
-                <td colSpan={3} className="px-4 py-2 text-gray-500 italic text-center">
-                No jobs found
-                </td>
-            </tr>
-            ) : (
-            jobs.map(job => (
-                <tr key={job.id} className="border-t">
-                <td className="px-4 py-2">{job.title}</td>
-                <td className="px-4 py-2">{job.company}</td>
-                <td className="px-4 py-2">{job.location}</td>
-                <td className="px-4 py-2">{job.status}</td>
-                <td className="px-4 py-2">{job.applied_date}</td>
-                <td className="px-4 py-2">{job.job_link}</td>
-                </tr>
-            ))
-            )}
-        </tbody>
-        </table>
+        <JobTable jobs={jobs} 
+            onEdit={(job) => setEditingJob(job)}
+            onDelete={ async (id) => {
+                await deleteJob(id)
+                setRefreshKey((k) => k + 1)
+            }}
+        />
+
+        {/* Modal for Editing */}
+        {editingJob && 
+            <Modal onClose={() => setEditingJob(null)}>
+                <JobForm
+                    initialData={editingJob}
+                    onCreated={() => {
+                        setEditingJob(null);
+                        setRefreshKey((k) => k + 1)
+                    }}
+                />
+            </Modal>
+        }
     </div>
   );
 }
