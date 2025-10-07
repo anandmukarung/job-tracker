@@ -1,5 +1,5 @@
 import { render, screen, fireEvent, within} from "@testing-library/react"
-import JobTable from "../JobTable"
+import JobTable from "../src/components/JobTable"
 import { vi } from "vitest"
 import { mockJobs } from "./MockJobs"
 

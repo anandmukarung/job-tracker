@@ -2,15 +2,15 @@ import { mockJobs } from "./MockJobs";
 import { vi } from "vitest"
 
 // mock the whole jobs API module
-vi.mock("../../api/jobs", () => ({
+vi.mock("../src/api/jobs", () => ({
   createJob: vi.fn().mockResolvedValue({... mockJobs[0]}),
   updateJob: vi.fn().mockResolvedValue({... mockJobs[1]}),
 }));
 
 import { act, render, screen, waitFor } from "@testing-library/react"
 import userEvent from "@testing-library/user-event"
-import JobForm from "../JobForm";
-import { createJob, updateJob } from "../../api/jobs";
+import JobForm from "../src/components/JobForm";
+import { createJob, updateJob } from "../src/api/jobs";
 
 test("all input fields are being rendered with proper initial values", async() => {
     render(<JobForm/>);
