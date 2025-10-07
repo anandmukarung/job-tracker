@@ -1,15 +1,15 @@
-import React, { useEffect, useState, type ChangeEvent } from "react";
+import React, { useEffect, useState, } from "react";
 import { createJob, updateJob} from "../api/jobs";
 import type { Job, JobCreate, JobStatus} from "../types/job";
 
 type JobFormProps = {
     initialData?: Job;
-    onCreated?: () => void; 
+    onSubmitted?: () => void; 
 };
 
 const STATUSES: JobStatus[] = ["Saved", "Applied", "Interview", "Offer", "Rejected"];
 
-export default function JobForm({ initialData, onCreated }: JobFormProps){
+export default function JobForm({ initialData, onSubmitted }: JobFormProps){
 
     const blankJOb: JobCreate = {
         title: "",
@@ -80,7 +80,7 @@ export default function JobForm({ initialData, onCreated }: JobFormProps){
 
             //Reset if creating new job;
             if (!initialData) setJob(blankJOb);
-            onCreated?.();
+            onSubmitted?.();
         } catch (err){
             setError("Failed to save job. Please try again.");
         } finally {
@@ -93,6 +93,7 @@ export default function JobForm({ initialData, onCreated }: JobFormProps){
             {error && <p className="text-red-600">{error}</p>}
 
             <input 
+                aria-label="Job Title"
                 type="text"
                 name="title"
                 value={job.title || ""}
@@ -101,7 +102,8 @@ export default function JobForm({ initialData, onCreated }: JobFormProps){
                 className="border px-3 py-2 rounded w-full"
             />
 
-            <input 
+            <input
+                aria-label="Company Name"
                 type="text"
                 name="company"
                 value={job.company || ""}
@@ -111,6 +113,7 @@ export default function JobForm({ initialData, onCreated }: JobFormProps){
             />
 
             <input 
+                aria-label="Job Location"
                 type="text"
                 name="location"
                 value={job.location || ""}
@@ -120,6 +123,7 @@ export default function JobForm({ initialData, onCreated }: JobFormProps){
             />
 
             <select
+                aria-label="Job Status"
                 name="status"
                 value={job.status}
                 onChange={handleChange}
@@ -132,10 +136,11 @@ export default function JobForm({ initialData, onCreated }: JobFormProps){
                 ))}
             </select>
             
-            <label className="block text-sm font-medium text-gray-700">
+            <label htmlFor="application-date" className="block text-sm font-medium text-gray-700">
                 Application Date
             </label>
-            <input 
+            <input
+                id="application-date"
                 type="date"
                 name="applied_date"
                 value={job.applied_date || ""}
@@ -143,10 +148,11 @@ export default function JobForm({ initialData, onCreated }: JobFormProps){
                 className="border px-3 py-2 rounded w-full"
             />
             
-            <label className="block text-sm font-medium text-gray-700">
+            <label htmlFor="follow-up-date" className="block text-sm font-medium text-gray-700">
                 Follow-up Date
             </label>
             <input 
+                id="follow-up-date"
                 type="date"
                 name="follow_up_date"
                 value={job.follow_up_date || ""}
@@ -155,6 +161,7 @@ export default function JobForm({ initialData, onCreated }: JobFormProps){
             />
 
             <input 
+                aria-label="Job Link"
                 type="url"
                 name="job_link"
                 value={job.job_link || ""}
@@ -163,7 +170,8 @@ export default function JobForm({ initialData, onCreated }: JobFormProps){
                 className="border px-3 py-2 rounded w-full"
             />
 
-            <textarea 
+            <textarea
+                aria-label="Job Description"
                 name="job_description"
                 value={job.job_description || ""}
                 onChange={handleChange}
@@ -172,6 +180,7 @@ export default function JobForm({ initialData, onCreated }: JobFormProps){
             />
 
             <input 
+                aria-label="Job Board ID"
                 type="text"
                 name="job_board_id"
                 value={job.job_board_id || ""}
@@ -181,6 +190,7 @@ export default function JobForm({ initialData, onCreated }: JobFormProps){
             />
 
             <input 
+                aria-label="Job Source"
                 type="text"
                 name="source"
                 value={job.source || ""}
@@ -190,8 +200,9 @@ export default function JobForm({ initialData, onCreated }: JobFormProps){
             />
 
             <textarea 
+                aria-label="Job Notes"
                 name="notes"
-                value={job.job_description || ""}
+                value={job.notes || ""}
                 onChange={handleChange}
                 placeholder="Notes"
                 className="border px-3 py-2 rounded w-full"
@@ -200,10 +211,11 @@ export default function JobForm({ initialData, onCreated }: JobFormProps){
             {/* Submit button */}
             <button
                 type="submit"
+                aria-label="submit"
                 disabled={submitting}
                 className="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700"
             >
-                {initialData? "Update Job" : "Add Job"}
+                {submitting ? "Saving..." : initialData? "Update Job" : "Add Job"}
             </button>
         </form>
         

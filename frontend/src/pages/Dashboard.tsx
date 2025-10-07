@@ -34,7 +34,7 @@ export default function Dashboard() {
         {showModal && (
             <Modal onClose={() => setShowModal(false)}>
                 <JobForm
-                    onCreated={() => {
+                    onSubmitted={() => {
                         setRefreshKey((k) => k + 1);
                         setShowModal(false);
                     }}
@@ -56,7 +56,7 @@ export default function Dashboard() {
             <Modal onClose={() => setEditingJob(null)}>
                 <JobForm
                     initialData={editingJob}
-                    onCreated={() => {
+                    onSubmitted={() => {
                         setEditingJob(null);
                         setRefreshKey((k) => k + 1)
                     }}
