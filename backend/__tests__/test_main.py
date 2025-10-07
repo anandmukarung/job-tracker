@@ -1,9 +1,9 @@
 import pytest
 from fastapi.testclient import TestClient
-from .main import app
-from .database import get_db
+from backend.main import app
+from backend.database import get_db
 from .test_database import engine,override_get_db
-from . import models
+from backend import models
 
 # Override DB dependency to use in-memory DB
 app.dependency_overrides[get_db] = override_get_db
@@ -143,3 +143,18 @@ def test_search_jobs():
     response = client.get("/jobs/search?company=Google&skip=1&limit=1")
     data = response.json()
     assert len(data) == 1
+
+def test_batch_jobs():
+
+    old_data = client.get("/jobs/").json()
+
+    client.post("/jobs/batch", json=[
+        {"title": "Backend Engineer", "company": "Amazon", "status": "applied", "location": "San Fransisco, CA", "applied_date": "2025-09-29", "job_description": "", "resume_path": None, "job_board_id": None, "source": "LinkedIn"},
+        {"title": "Frontend Engineer", "company": "Microsoft", "status": "applied", "location": "Pittsburgh", "applied_date": "2025-09-29", "job_description": "", "resume_path": None, "job_board_id": None, "source": "LinkedIn"},
+        {"title": "DevOps Engineer I", "company": "Apple", "status": "interview", "location": "Pittsburgh", "applied_date": "2025-09-29", "job_description": "", "resume_path": None, "job_board_id": None, "source": "Indeed"},
+        {"title": "DevOps Engineer II", "company": "Apple", "status": "applied", "location": "Seattle, WA", "applied_date": "2025-09-29", "job_description": "", "resume_path": None, "job_board_id": None, "source": "Indeed"},
+    ])
+
+    new_data = client.get("/jobs/").json()
+    assert len(new_data) == (len(old_data) + 4)
+

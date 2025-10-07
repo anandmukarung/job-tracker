@@ -79,7 +79,16 @@ def update_job(job_id: int, job_update: schemas.JobUpdate, db: Session = Depends
         raise HTTPException(status_code=404, detail= "Job not found")
     return job
 
+#Upload jobs in bulk
+@app.post("/jobs/batch", response_model=list[schemas.Job])
+def create_jobs_batch(jobs: list[schemas.JobCreate], db: Session = Depends(get_db)):
+    created_jobs = []
+    for job in jobs:
+        created = crud.create_job(db=db, job=job)
+        created_jobs.append(created)
+    return created_jobs
 
 @app.get("/")
 def root():
     return {"message": "Job Tracker API is running with DB!"}
+
