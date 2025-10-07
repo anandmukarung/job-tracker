@@ -4,12 +4,13 @@ import type { Job, JobCreate, JobStatus} from "../types/job";
 
 type JobFormProps = {
     initialData?: Job;
-    onSubmitted?: () => void; 
+    onSubmitted?: () => void;
+    onCancel?: () => void; 
 };
 
 const STATUSES: JobStatus[] = ["Saved", "Applied", "Interview", "Offer", "Rejected"];
 
-export default function JobForm({ initialData, onSubmitted }: JobFormProps){
+export default function JobForm({ initialData, onSubmitted, onCancel}: JobFormProps){
 
     const blankJOb: JobCreate = {
         title: "",
@@ -89,7 +90,7 @@ export default function JobForm({ initialData, onSubmitted }: JobFormProps){
     }
 
     return (
-        <form onSubmit={handleSubmit} aria-label="job form" className="space-y-4">
+        <form onSubmit={handleSubmit} aria-label="job form" className="space-y-4 space-x-4">
             {error && <p className="text-red-600">{error}</p>}
 
             <input 
@@ -122,8 +123,11 @@ export default function JobForm({ initialData, onSubmitted }: JobFormProps){
                 className="border px-3 py-2 rounded w-full"
             />
 
+            <label htmlFor="status" className=" text-sm font-medium text-gray-700">
+                Status:
+            </label>
             <select
-                aria-label="Job Status"
+                id="status"
                 name="status"
                 value={job.status}
                 onChange={handleChange}
@@ -136,8 +140,8 @@ export default function JobForm({ initialData, onSubmitted }: JobFormProps){
                 ))}
             </select>
             
-            <label htmlFor="application-date" className="block text-sm font-medium text-gray-700">
-                Application Date
+            <label htmlFor="application-date" className=" text-sm font-medium text-gray-700">
+                Application Date:
             </label>
             <input
                 id="application-date"
@@ -148,8 +152,8 @@ export default function JobForm({ initialData, onSubmitted }: JobFormProps){
                 className="border px-3 py-2 rounded w-full"
             />
             
-            <label htmlFor="follow-up-date" className="block text-sm font-medium text-gray-700">
-                Follow-up Date
+            <label htmlFor="follow-up-date" className="text-sm font-medium text-gray-700">
+                Follow-up Date:
             </label>
             <input 
                 id="follow-up-date"
@@ -216,6 +220,22 @@ export default function JobForm({ initialData, onSubmitted }: JobFormProps){
                 className="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700"
             >
                 {submitting ? "Saving..." : initialData? "Update Job" : "Add Job"}
+            </button>
+
+            <button
+                type="button"
+                aria-label="cancel"
+                onClick={() => {
+                    const confirmCancel = window.confirm(
+                        "Are you sure you want to cancel? Unsaved changes will be lost."
+                    );
+                    if (confirmCancel) {
+                        onCancel?.();
+                    }
+                }}
+                className="px-4 py-2 bg-gray-300 text-gray-700 rounded hover:bg-gray-400"
+            >
+                Cancel
             </button>
         </form>
         

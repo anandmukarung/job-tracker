@@ -4,6 +4,7 @@ import type { Job } from "../types/job";
 import JobForm from "../components/JobForm";
 import Modal from "../components/Modal";
 import JobTable from "../components/JobTable";
+import DashboardMetrics from "../components/DashboardMetrics";
 
 export default function Dashboard() {
   const [jobs, setJobs] = useState<Job[]>([]);
@@ -20,8 +21,17 @@ export default function Dashboard() {
   }, [refreshKey]);
 
   return (
-    <div className="min-h-screen w-full bg-gray-50 p-4">
-        <h1 className="text-2xl font-bold mb-4">Job Tracker</h1>
+    <div className="min-h-screen w-full bg-gray-50 p-4 overflow-visible">
+        <h1 className="text-2xl font-bold mb-4">Job Applications</h1>
+        {/*Dashboard Metrics*/}
+        <DashboardMetrics
+            total={jobs.length}
+            applied={jobs.filter((j) => j.status === "Applied").length}
+            interviewing={jobs.filter((j) => j.status === "Interview").length}
+            offers={jobs.filter((j) => j.status === "Offer").length}
+            rejected={jobs.filter((j) => j.status === "Rejected").length}
+        />
+
         {/*Add Job Button*/}
         <button 
             onClick={() => setShowModal(true)}
@@ -36,6 +46,9 @@ export default function Dashboard() {
                 <JobForm
                     onSubmitted={() => {
                         setRefreshKey((k) => k + 1);
+                        setShowModal(false);
+                    }}
+                    onCancel={() => {
                         setShowModal(false);
                     }}
                 />
@@ -59,6 +72,9 @@ export default function Dashboard() {
                     onSubmitted={() => {
                         setEditingJob(null);
                         setRefreshKey((k) => k + 1)
+                    }}
+                    onCancel={() =>{
+                        setEditingJob(null);
                     }}
                 />
             </Modal>

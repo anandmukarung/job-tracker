@@ -19,7 +19,7 @@ test("all input fields are being rendered with proper initial values", async() =
     expect(screen.getByLabelText(/job title/i)).toHaveValue("");
     expect(screen.getByLabelText(/company name/i)).toHaveValue("");
     expect(screen.getByLabelText(/job location/i)).toHaveValue("");
-    expect(screen.getByLabelText(/job status/i)).toHaveDisplayValue("Saved");
+    expect(screen.getByLabelText(/status/i)).toHaveDisplayValue("Saved");
     expect(screen.getByLabelText(/application date/i)).toHaveValue("");
     expect(screen.getByLabelText(/follow-up date/i)).toHaveValue("");
     expect(screen.getByLabelText(/job link/i)).toHaveValue("");
@@ -38,7 +38,7 @@ test("edit mode renders pre-filled data for job", async() => {
     expect(screen.getByLabelText(/job title/i)).toHaveValue(mockJobs[0].title);
     expect(screen.getByLabelText(/company name/i)).toHaveValue(mockJobs[0].company);
     expect(screen.getByLabelText(/job location/i)).toHaveValue(mockJobs[0].location);
-    expect(screen.getByLabelText(/job status/i)).toHaveDisplayValue(mockJobs[0].status);
+    expect(screen.getByLabelText(/status/i)).toHaveDisplayValue(mockJobs[0].status);
     expect(screen.getByLabelText(/application date/i)).toHaveValue(mockJobs[0].applied_date);
     expect(screen.getByLabelText(/follow-up date/i)).toHaveValue("");
     expect(screen.getByLabelText(/job link/i)).toHaveValue(mockJobs[0].job_link);
@@ -100,7 +100,7 @@ test("successful job addition when required fields are met", async () => {
         expect(screen.getByLabelText(/job title/i)).toHaveValue("");
         expect(screen.getByLabelText(/company name/i)).toHaveValue("");
         expect(screen.getByLabelText(/job location/i)).toHaveValue("");
-        expect(screen.getByLabelText(/job status/i)).toHaveDisplayValue("Saved");
+        expect(screen.getByLabelText(/status/i)).toHaveDisplayValue("Saved");
         expect(screen.getByLabelText(/application date/i)).toHaveValue("");
         expect(screen.getByLabelText(/follow-up date/i)).toHaveValue("");
         expect(screen.getByLabelText(/job link/i)).toHaveValue("");
@@ -147,4 +147,91 @@ test("successful job editing ", async () => {
    
 });
 
+test("closes on cancel button while adding job", async () => {
+    // mock confirm to auto-return false
+    vi.spyOn(window, "confirm").mockReturnValueOnce(true);
+
+    const mockOnCancel = vi.fn();
+    const mockOnSubmitted = vi.fn();
+
+    render(<JobForm onSubmitted={mockOnSubmitted} onCancel={mockOnCancel}/>);
+
+    // click cancel
+    const cancelButton = screen.getByLabelText('cancel');
+    await userEvent.click(cancelButton);
+    
+    // onSubmitted should NOT have been called 
+    expect(mockOnSubmitted).not.toHaveBeenCalled();
+
+    // onCancel SHOULD have been called
+    expect(mockOnCancel).toHaveBeenCalled();
+   
+});
+
+test("does not close if not confirmed", async () => {
+    // mock confirm to auto-return false
+    vi.spyOn(window, "confirm").mockReturnValueOnce(false);
+
+    const mockOnCancel = vi.fn();
+    const mockOnSubmitted = vi.fn();
+
+    // render with initial data
+    render(<JobForm initialData={mockJobs[0]} onSubmitted={mockOnSubmitted} onCancel={mockOnCancel}/>);
+    
+    // click cancel
+    const cancelButton = screen.getByLabelText('cancel');
+    await userEvent.click(cancelButton);
+    
+    // onSubmitted should NOT have been called 
+    expect(mockOnSubmitted).not.toHaveBeenCalled();
+
+    // onCancel SHOULD have been called
+    expect(mockOnCancel).not.toHaveBeenCalled();
+
+    // Expect the initial data still to be there
+    expect(screen.getByLabelText(/job title/i)).toHaveValue(mockJobs[0].title);
+    expect(screen.getByLabelText(/company name/i)).toHaveValue(mockJobs[0].company);
+    expect(screen.getByLabelText(/job location/i)).toHaveValue(mockJobs[0].location);
+    expect(screen.getByLabelText(/status/i)).toHaveDisplayValue(mockJobs[0].status);
+    expect(screen.getByLabelText(/application date/i)).toHaveValue(mockJobs[0].applied_date);
+    expect(screen.getByLabelText(/follow-up date/i)).toHaveValue("");
+    expect(screen.getByLabelText(/job link/i)).toHaveValue(mockJobs[0].job_link);
+    expect(screen.getByLabelText(/job description/i)).toHaveValue(mockJobs[0].job_description);
+    expect(screen.getByLabelText(/job board id/i)).toHaveValue(mockJobs[0].job_board_id);
+    expect(screen.getByLabelText(/job source/i)).toHaveValue(mockJobs[0].source);
+    expect(screen.getByLabelText(/job notes/i)).toHaveValue(mockJobs[0].notes);
+    expect(screen.getByLabelText(/submit/i)).toHaveTextContent("Update Job");
+   
+});
+
+test("closes on cancel button while editing job", async () => {
+    // mock confirm to auto-return false
+    vi.spyOn(window, "confirm").mockReturnValueOnce(true);
+
+    const mockOnCancel = vi.fn();
+    const mockOnSubmitted = vi.fn();
+    // render with existing data mockJobs[0]
+    render(<JobForm initialData={mockJobs[0]} onSubmitted={mockOnSubmitted} onCancel={mockOnCancel}/>);
+
+    // clear existing data
+    await userEvent.clear(screen.getByLabelText(/title/i));
+    await userEvent.clear(screen.getByLabelText(/company/i));
+    await userEvent.clear(screen.getByLabelText(/location/i));
+    
+    // re-fill inputs
+    await userEvent.type(screen.getByLabelText(/title/i), mockJobs[1].title);
+    await userEvent.type(screen.getByLabelText(/company/i), mockJobs[1].company);
+    await userEvent.type(screen.getByLabelText(/location/i), mockJobs[1].location);
+
+    // click cancel
+    const cancelButton = screen.getByLabelText('cancel');
+    await userEvent.click(cancelButton);
+    
+    // onSubmitted should NOT have been called 
+    expect(mockOnSubmitted).not.toHaveBeenCalled();
+
+    // onCancel SHOULD have been called
+    expect(mockOnCancel).toHaveBeenCalled();
+   
+});
 

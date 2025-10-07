@@ -16,6 +16,9 @@ describe("Modal Component", () => {
     });
 
     test("calls onClose when clicking the close button", () => {
+        // mock confirm to auto-return true
+        vi.spyOn(window, "confirm").mockReturnValueOnce(true);
+        
         const mockClose = vi.fn();
         render(
         <Modal onClose={mockClose}>
@@ -40,4 +43,21 @@ describe("Modal Component", () => {
     fireEvent.click(overlay);
     expect(mockClose).not.toHaveBeenCalled();
     });
+
+    test("does NOT close if not confirmed", () => {
+        // mock confirm to auto-return false
+        vi.spyOn(window, "confirm").mockReturnValueOnce(false);
+        
+        const mockClose = vi.fn();
+        render(
+        <Modal onClose={mockClose}>
+            <p>Test Modal</p>
+        </Modal>
+        );
+
+        const closeButton = screen.getByLabelText(/close-modal/i);
+        fireEvent.click(closeButton);
+        expect(mockClose).not.toHaveBeenCalled();
+    });
+
 });
