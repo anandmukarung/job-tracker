@@ -156,3 +156,11 @@ MIT License © 2025 Anand Rai
 
 🟢 **Active Development** — The core backend and frontend integration are complete.  
 Next milestones include metric visualization, job import automation, and cloud deployment.
+
+## Development Roadmap
+- [x] CRUD functionality
+- [x] Job form modal
+- [x] Multi-job upload
+- [ ] Dashboard analytics (charts)
+- [ ] Resume upload per job
+- [ ] Email/job scraping automation
