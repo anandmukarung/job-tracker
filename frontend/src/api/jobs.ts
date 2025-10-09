@@ -38,3 +38,9 @@ export async function searchJobs(params:{
    const res = await api.get<Job[]>("/jobs/search",{params});
    return res.data;
 }
+
+// Add multiple jobs
+export async function createJobsBatch(jobs: JobCreate[]) {
+    const res = await api.post<Job[]>("/jobs/batch", jobs);
+    return res.data;
+}
