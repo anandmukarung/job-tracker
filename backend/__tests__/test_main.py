@@ -1,9 +1,9 @@
 import pytest
 from fastapi.testclient import TestClient
-from backend.main import app
-from backend.database import get_db
+from backend.app.main import app
+from backend.app.db.database import get_db
 from .test_database import engine,override_get_db
-from backend import models
+from backend.app.models import models
 
 # Override DB dependency to use in-memory DB
 app.dependency_overrides[get_db] = override_get_db

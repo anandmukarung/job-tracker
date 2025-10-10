@@ -1,7 +1,7 @@
 from datetime import datetime, timezone
 from sqlalchemy import Column, Integer, String, Date, DateTime
 from sqlalchemy.sql import func
-from .database import Base
+from ..db.database import Base
 
 class Job(Base):
     __tablename__ = "jobs"
