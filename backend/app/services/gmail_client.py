@@ -18,6 +18,33 @@ TOKEN_PATH = BASE_DIR / "token" / "gmail_token.json"
 # Scopes we need
 SCOPES = ["https://www.googleapis.com/auth/gmail.readonly"]
 
+# Possible messages for application confirmation
+CONFIRMATION_PHRASES = [
+    "thank you for applying",
+    "your application has been received",
+    "application received",
+    "we have received your application",
+    "you applied for",
+    "application submitted",
+]
+
+# Possible messages for application updates
+UPDATE_PHRASES = [
+    "update on your application",
+    "status of your application",
+    "we have reviewed your application",
+    "your application status has changed",
+    "we regret to inform you",
+    "we’re excited to move forward",
+    "interview",
+    "offer",
+    "unfortunately"
+]
+
+# Separate 3rd party communications
+def is_third_party_platform(from_email: str) -> bool:
+    return any(domain in from_email.lower() for domain in ["linkedin", "indeed", "glassdoor"])
+
 # Helper: create OAuth flow (used to generate consent URL)
 def make_auth_flow(redirect_uri: str) -> Flow:
     if not CREDENTIALS_PATH.exists():
@@ -93,79 +120,40 @@ def _get_message_body_parts(payload):
             return base64.urlsafe_b64decode(raw).decode("utf-8", errors="ignore")
     return ""
 
-# Parse a message to extract possible job entries (very heuristic)
+# Parse a message to extract possible job entries
 def parse_job_candidates_from_message(msg: Dict) -> List[Dict]:
     # Subject & snippet
     headers = {h["name"].lower(): h["value"] for h in msg.get("payload", {}).get("headers", [])}
+    from_email = headers.get("from", "")
     subject = headers.get("subject", "")
-    date = headers.get("date", "")
+    
+    result = [{"from": from_email, "subject": subject }]
+    return result
+
+def is_job_application_email(msg: Dict) -> bool:
+    payload = msg.get("payload", {})
+    headers = {h["name"].lower(): h["value"] for h in payload.get("headers", [])}
+    from_email = headers.get("from", "")
+    subject = headers.get("subject", "")
     snippet = msg.get("snippet", "")
-    body_html = _get_message_body_parts(msg.get("payload", {})) or snippet or ""
+    body = _get_message_body_parts(payload) or snippet
 
-    candidates = []
-    # heuristics / regex examples - tweak to your observed email formats
-    # Example LinkedIn: "You applied to Software Engineer at OpenAI"
-    m = re.search(r"You applied to\s+(.+?)\s+at\s+([^\n<.,]+)", body_html, re.I)
-    if m:
-        candidates.append({
-            "title": m.group(1).strip(),
-            "company": m.group(2).strip(),
-            "source": "LinkedIn",
-            "applied_date": date,
-            "job_link": None
-        })
+    if (is_third_party_platform(from_email)):
+        return False
+    
+    content = f"{subject} {body}".lower()
+    if any(p in content for p in CONFIRMATION_PHRASES):
+        return True
+    
+    return False
 
-    # Other generic patterns
-    m2 = re.search(r"application (?:received|submitted) for (.+?) at (.+?)", body_html, re.I)
-    if m2:
-        candidates.append({
-            "title": m2.group(1).strip(),
-            "company": m2.group(2).strip(),
-            "source": "unknown",
-            "applied_date": date,
-            "job_link": None
-        })
-
-    # extract anchors pointing to common job sources
-    for anchor_match in re.finditer(r'href=[\'"]([^\'"]+)[\'"].*?>([^<]+)</a>', body_html, re.I|re.S):
-        href, text = anchor_match.groups()
-        if "linkedin.com" in href or "indeed.com" in href or "jobs." in href:
-            candidates.append({
-                "title": text.strip() or subject,
-                "company": headers.get("from", "").split("@")[0],
-                "source": "link",
-                "applied_date": date,
-                "job_link": href
-            })
-
-    # fallback: use subject if it contains applied wording
-    if not candidates and re.search(r"(applied|application received|application submitted)", subject, re.I):
-        # try to extract "title at company" from subject
-        m3 = re.search(r"(.+?) at (.+)", subject)
-        if m3:
-            candidates.append({
-                "title": m3.group(1).strip(),
-                "company": m3.group(2).strip(),
-                "source": "email-subject",
-                "applied_date": date,
-                "job_link": None
-            })
-
-    # dedupe by title+company
-    seen = set()
-    uniq = []
-    for c in candidates:
-        key = (c.get("title","").lower(), c.get("company","").lower())
-        if key not in seen:
-            seen.add(key)
-            uniq.append(c)
-    return uniq
 
 # High-level: fetch email-job candidates via query and return parsed list
-def fetch_job_candidates_from_gmail(query: str = "applied OR \"thank you for your application\" newer_than:365d", max_results: int = 50) -> List[Dict]:
+def fetch_job_applications_from_gmail(query: str , max_results: int) -> List[Dict]:
     ids = list_message_ids(q=query, max_results=max_results)
     candidates = []
     for id_ in ids:
         msg = get_message(id_)
-        candidates.extend(parse_job_candidates_from_message(msg))
+        if(is_job_application_email(msg)):
+            candidates.extend(parse_job_candidates_from_message(msg))
     return candidates

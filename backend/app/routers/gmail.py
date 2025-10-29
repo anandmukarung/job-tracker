@@ -2,7 +2,7 @@ from fastapi import APIRouter, Request, HTTPException, Query
 from ..services.gmail_client import (
     get_authorize_url,
     exchange_code_and_save_tokens,
-    fetch_job_candidates_from_gmail,
+    fetch_job_applications_from_gmail,
     load_credentials,
 )
 
@@ -62,7 +62,7 @@ def get_jobs_from_gmail(
     Fetch job application emails and parse possible job candidates.
     """
     try:
-        jobs = fetch_job_candidates_from_gmail(query=query, max_results=max_results)
+        jobs = fetch_job_applications_from_gmail(query=query, max_results=max_results)
         return {"count": len(jobs), "jobs": jobs}
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to fetch Gmail jobs: {str(e)}")
