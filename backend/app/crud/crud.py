@@ -21,7 +21,7 @@ def create_job(db: Session, job: schemas.JobCreate):
         applied_date=job.applied_date,
         follow_up_date=job.follow_up_date,
         job_link=job.job_link,
-        job_description=job.description,
+        job_description=job.job_description,
         resume_path=job.resume_path,
         job_board_id=job.job_board_id,
         source=job.source,

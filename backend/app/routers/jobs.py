@@ -8,18 +8,18 @@ from ..models import models
 router = APIRouter(prefix="/jobs", tags=["Jobs"])
 
 #Create a job
-@router.post("/jobs/", response_model=schemas.Job)
+@router.post("/", response_model=schemas.Job)
 def create_job_route(job: schemas.JobCreate, db: Session = Depends(get_db)):
     return crud.create_job(db=db, job=job)
 
 #Return all jobs with pagination
-@router.get("/jobs/", response_model=list[schemas.Job])
+@router.get("/", response_model=list[schemas.Job])
 def read_jobs(skip: int = 0, limit: int = 100, db: Session = Depends(get_db)):
     jobs = crud.get_jobs(db, skip=skip, limit=limit)
     return jobs
 
 #Search job by criteria
-@router.get("/jobs/search", response_model=list[schemas.Job])
+@router.get("/search", response_model=list[schemas.Job])
 def search_jobs(
     company: str = None,  # type: ignore
     title: str = None,  # type: ignore
@@ -45,7 +45,7 @@ def search_jobs(
     )
 
 #Get single job
-@router.get("/jobs/{job_id}", response_model=schemas.Job)
+@router.get("/{job_id}", response_model=schemas.Job)
 def read_job(job_id: int, db: Session = Depends(get_db)):
     job = crud.get_job_by_id(db, job_id)
     if not job:
@@ -53,7 +53,7 @@ def read_job(job_id: int, db: Session = Depends(get_db)):
     return job
 
 #Delete a job
-@router.delete("/jobs/{job_id}", response_model=schemas.Job)
+@router.delete("/{job_id}", response_model=schemas.Job)
 def delete_job_route(job_id: int, db: Session = Depends(get_db)):
     db_job = crud.get_job_by_id(db, job_id)
     if not db_job:
@@ -61,7 +61,7 @@ def delete_job_route(job_id: int, db: Session = Depends(get_db)):
     return crud.delete_job(db=db, job_id=job_id)
 
 #Update a job
-@router.put("/jobs/{job_id}", response_model=schemas.Job)
+@router.put("/{job_id}", response_model=schemas.Job)
 def update_job(job_id: int, job_update: schemas.JobUpdate, db: Session = Depends(get_db)):
     job = crud.update_job(db=db, job_id=job_id,job_update=job_update)
     if not job:
@@ -69,7 +69,7 @@ def update_job(job_id: int, job_update: schemas.JobUpdate, db: Session = Depends
     return job
 
 #Upload jobs in bulk
-@router.post("/jobs/batch", response_model=list[schemas.Job])
+@router.post("/batch", response_model=list[schemas.Job])
 def create_jobs_batch(jobs: list[schemas.JobCreate], db: Session = Depends(get_db)):
     created_jobs = []
     for job in jobs:
