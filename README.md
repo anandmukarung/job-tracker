@@ -1,166 +1,126 @@
-# 🧭 Job Application Tracker
+# Job Tracker App
 
-A full-stack web application designed to help job seekers organize, visualize, and track their job applications efficiently.
+A full-stack job application tracking platform focused on improving the quality and organization of the software engineering job search process.
 
----
+The project began as a personal job application tracker and is gradually evolving into a workflow automation platform that combines:
+- application tracking
+- resume tailoring
+- email parsing
+- job discovery
+- analytics and follow-up management
 
-## 🚀 Overview
-
-The **Job Application Tracker** provides a personal dashboard for managing every aspect of the job search process — from saving job postings to tracking application statuses, follow-ups, and interviews.
-
-It aims to:
-- Reduce manual tracking (spreadsheets, notes)
-- Visualize your job search metrics
-- Automatically sync with job boards and emails (future)
-- Support resume and job-description management per application
+The current focus is building a stable and well-tested MVP before expanding into broader automation features.
 
 ---
 
-## 🧩 Tech Stack
+## Current Stack
 
-**Frontend**
-- React (TypeScript)
+### Frontend
+- React
+- TypeScript
 - Vite
-- Tailwind CSS (v4)
-- Axios
-- Vitest + React Testing Library (for unit/integration testing)
+- TailwindCSS
+- React Router
+- Vitest + React Testing Library
 
-**Backend**
-- FastAPI (Python)
-- SQLAlchemy ORM + Alembic (for migrations)
-- SQLite (local dev) → PostgreSQL (production)
-- Pydantic schemas for validation
-- Pytest for backend testing
-
----
-
-## 📸 Features (MVP)
-
-- ✅ Add, edit, and delete job applications  
-- ✅ Responsive, modern UI built with Tailwind CSS  
-- ✅ Persistent database (SQLite/PostgreSQL)  
-- ✅ Form validation with contextual feedback  
-- ✅ Modular component architecture  
-- ✅ Frontend & backend unit tests  
-- ✅ Dynamic job list with sorting & status tracking  
+### Backend
+- FastAPI
+- SQLAlchemy
+- PostgreSQL / SQLite (development)
+- Gmail API integration
+- Pytest
 
 ---
 
-## 🎯 Roadmap (In Progress)
+## Current Features
 
-| Feature | Status |
-|----------|---------|
-| 📊 Dashboard Metrics (Applied, Interviewing, Offers, Rejected) | 🔧 In Progress |
-| 📆 Follow-up Reminders / To-do List | 🧠 Planned |
-| 📩 Email Integration (Auto-import applications) | 🧠 Planned |
-| 🌐 Job Board Scraper (LinkedIn, Indeed, Google Jobs) | 🧠 Planned |
-| 🗂️ Resume/Job Description Attachment | 🧠 Planned |
-| 🔒 Authentication & Multi-user Support | 🧠 Planned |
-| ☁️ Cloud Deployment (Render / Vercel + Supabase) | 🧠 Planned |
+### Job Management
+- Create, edit, update, and delete job applications
+- Batch upload jobs
+- Track:
+  - company
+  - title
+  - location
+  - status
+  - application dates
+  - follow-up dates
+  - notes
+  - job links
+  - source/platform
 
----
+### Search & Filtering
+- Search jobs by:
+  - title
+  - company
+  - location
+  - status
+- Sorting and pagination support
 
-## 🧪 Testing
+### Frontend UI
+- Dashboard page
+- Dedicated jobs page
+- Modal-based job creation/editing
+- Responsive job table
+- Upload jobs modal
+- Dashboard metrics cards
 
-**Frontend:**  
-- Unit tests with Vitest & React Testing Library  
-- Coverage reports (`npm run test -- --coverage`)  
-- Mocked API layer (no real backend calls during testing)
+### Gmail Integration (In Progress)
+- Google OAuth authentication
+- Gmail API connection
+- Fetching and parsing job-related emails
+- Experimental email classification pipeline
+- Planned:
+  - automatic application detection
+  - application status updates from emails
+  - duplicate prevention using parsed email logs
 
-**Backend:**  
-- Pytest with in-memory SQLite for isolation  
-- Automated validation of CRUD routes
-
----
-
-## 🧰 Setup Instructions
-
-
-### 🖥️ Backend
-
-```bash
-cd backend
-python -m venv venv
-source venv/bin/activate   # or venv\Scripts\activate on Windows
-pip install -r requirements.txt
-uvicorn main:app --reload
-```
-
-### 🌐 Frontend
-
-```bash
-cd frontend
-npm install
-npm run dev
-```
-
-Open the app in your browser at `http://127.0.0.1:5173`.
+### Testing
+- Component testing with Vitest and React Testing Library
+- Backend API testing with Pytest
+- Coverage tracking enabled
 
 ---
 
-## 🧭 API Endpoints (MVP)
+## Current Development Focus
 
-| Method | Endpoint | Description |
-|--------|-----------|-------------|
-| `GET` | `/jobs/` | List all jobs |
-| `POST` | `/jobs/` | Create a new job |
-| `GET` | `/jobs/{id}` | Get job details |
-| `PUT` | `/jobs/{id}` | Update job |
-| `DELETE` | `/jobs/{id}` | Delete job |
-| `GET` | `/jobs/search` | Search by company, title, or location |
+The current phase of the project is focused on:
+1. Stabilizing the existing architecture
+2. Improving automated test coverage
+3. Refining Gmail parsing and classification
+4. Building a more complete dashboard experience
+5. Improving data quality and application workflows
 
 ---
 
-## 🧠 Design Philosophy
+## Planned Features
 
-This project emphasizes:
-- **Scalability:** Clear folder structure for both backend and frontend  
-- **Maintainability:** Modularized components and consistent naming  
-- **Testability:** Unit tests written for each layer  
-- **User Experience:** Minimalist, responsive UI with contextual hints  
+### Application Automation
+- Gmail-based application syncing
+- Automatic status updates
+- Follow-up reminders
 
----
+### Resume Tailoring
+- AI-assisted tailored resume generation
+- Cover letter generation
+- Version history for generated documents
 
-## 🖼️ UI Preview
+### Job Discovery
+- External job API integrations
+- Job fit scoring
+- Personalized recommendation feed
 
-*(Insert your screenshot here once you’re ready)*
-
----
-
-## 🤝 Contributing
-
-1. Fork the repo  
-2. Create a new branch (`feature/add-graph-widget`)  
-3. Commit your changes  
-4. Push and open a Pull Request  
-
----
-
-## 🧑‍💻 Author
-
-**Anand Rai**  
-📍 Pittsburgh, PA  
-🎓 B.S. Computer Science, California State University, Sacramento  
-💼 Software Engineer — passionate about full-stack development, fintech, and creative UX  
-🎵 Also a musician in his free time!
+### Analytics
+- Application trends
+- Interview conversion tracking
+- Response-rate metrics
+- Weekly summaries
 
 ---
 
-## 🪶 License
+## Project Status
 
-MIT License © 2025 Anand Rai
+This project is actively under development and currently serves as both:
+- a production-quality personal workflow tool
+- a long-term full-stack systems design project
 
----
-
-## 🧭 Project Status
-
-🟢 **Active Development** — The core backend and frontend integration are complete.  
-Next milestones include metric visualization, job import automation, and cloud deployment.
-
-## Development Roadmap
-- [x] CRUD functionality
-- [x] Job form modal
-- [x] Multi-job upload
-- [ ] Dashboard analytics (charts)
-- [ ] Resume upload per job
-- [ ] Email/job scraping automation
+The focus is currently on architecture, reliability, testing, and scalable feature design rather than rapid feature expansion.
