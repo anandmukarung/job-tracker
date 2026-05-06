@@ -97,9 +97,9 @@ export default function UploadJobsModal({ onClose, onUploaded }: { onClose: () =
                     <table className="min-w-full text-sm">
                         <thead className="bg-gray-100">
                             <tr>
-                                {Object.keys(jobs[0].map((key) => (
+                                {Object.keys(jobs[0]).map((key) => (
                                     <th key={key} className="px-3 py-2 text-left">{key}</th>
-                                )))}
+                                ))}
                             </tr>
                         </thead>
                         <tbody>
