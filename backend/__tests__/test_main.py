@@ -1,160 +1,209 @@
-import pytest
-from fastapi.testclient import TestClient
-from backend.app.main import app
-from backend.app.db.database import get_db
-from .test_database import engine,override_get_db
-from backend.app.models import models
+def create_job_payload(**overrides):
+    payload = {
+        "title": "Software Engineer",
+        "company": "OpenAI",
+        "location": "Remote",
+        "status": "Applied",
+        "applied_date": "2025-09-26",
+        "job_description": "Test job",
+        "resume_path": None,
+        "job_board_id": "openai-1",
+        "source": "LinkedIn",
+        "job_link": "https://example.com/job",
+        "notes": "Referral submitted",
+    }
+    payload.update(overrides)
+    return payload
 
-# Override DB dependency to use in-memory DB
-app.dependency_overrides[get_db] = override_get_db
 
-# Create tables in memory
-models.Base.metadata.create_all(bind=engine)
+def test_root_returns_health_message(client):
+    response = client.get("/")
 
-client = TestClient(app)
+    assert response.status_code == 200
+    assert response.json() == {"message": "Job Tracker API is running with DB!"}
 
-def test_create_job():
-    response = client.post(
-        "/jobs/",
-        json={
-            "title": "Software Engineer",
-            "company": "DTN",
-            "location": "Remote",
-            "status": "applied",
-            "applied_date": "2025-09-26",
-            "job_description": "Test Job",
-            "resume:path": None,
-            "job_board_id": "12345",
-            "source": "LinkedIn"
-        }
+
+def test_create_job_returns_created_record(client):
+    response = client.post("/jobs/", json=create_job_payload())
+
+    assert response.status_code == 200
+    data = response.json()
+    assert data["title"] == "Software Engineer"
+    assert data["job_board_id"] == "openai-1"
+    assert data["job_description"] == "Test job"
+
+
+def test_create_job_reuses_existing_duplicate_by_company_and_job_board_id(client):
+    payload = create_job_payload()
+
+    first = client.post("/jobs/", json=payload)
+    second = client.post("/jobs/", json=payload)
+    jobs = client.get("/jobs/")
+
+    assert first.status_code == 200
+    assert second.status_code == 200
+    assert second.json()["id"] == first.json()["id"]
+    assert len(jobs.json()) == 1
+
+
+def test_read_single_job_returns_404_when_missing(client):
+    response = client.get("/jobs/999")
+
+    assert response.status_code == 404
+    assert response.json()["detail"] == "Job not found"
+
+
+def test_update_job_changes_status_and_description(client):
+    create_resp = client.post("/jobs/", json=create_job_payload())
+    job_id = create_resp.json()["id"]
+
+    response = client.put(
+        f"/jobs/{job_id}",
+        json={"status": "Rejected", "job_description": "Role closed"},
     )
+
     assert response.status_code == 200
     data = response.json()
-    assert data["title"]=="Software Engineer"
-    assert data["job_board_id"] == "12345"
+    assert data["status"] == "Rejected"
+    assert data["job_description"] == "Role closed"
 
-def test_read_jobs():
-    response = client.get("/jobs/")
-    assert response.status_code == 200
-    data = response.json()
-    assert isinstance(data, list)
 
-def test_read_job():
-    # Create first
-    create_resp = client.post("/jobs/", json={
-        "title": "QA Engineer",
-        "company": "Amazon",
-        "location": "Seattle, WA",
-        "status": "applied",
-        "applied_date": "2025-09-26",
-        "job_description": "QA job",
-        "resume_path": None,
-        "job_board_id": "54321",
-        "source": "Indeed"
-    })
+def test_update_missing_job_returns_404(client):
+    response = client.put("/jobs/999", json={"status": "Rejected"})
+
+    assert response.status_code == 404
+    assert response.json()["detail"] == "Job not found"
+
+
+def test_delete_job_removes_record(client):
+    create_resp = client.post(
+        "/jobs/",
+        json=create_job_payload(job_board_id="openai-delete"),
+    )
     job_id = create_resp.json()["id"]
 
-    # Read
-    response = client.get(f"/jobs/{job_id}")
-    assert response.status_code == 200
-    data = response.json()
-    assert data["company"] == "Amazon"
-
-def test_update_job():
-    # Create
-    create_resp = client.post("/jobs/", json={
-        "title": "DevOps Engineer",
-        "company": "Microsoft",
-        "location": "Seattle, WA",
-        "status": "applied",
-        "applied_date": "2025-09-26",
-        "job_description": "DevOps job",
-        "resume_path": None,
-        "job_board_id": "99999",
-        "source": "LinkedIn"
-    })
-    job_id = create_resp.json()["id"]
-
-    # Update status
-    response = client.put(f"/jobs/{job_id}", json={"status": "rejected"})
-    assert response.status_code == 200
-    data = response.json()
-    assert data["status"] == "rejected"
-
-def test_delete_job():
-    # Create
-    create_resp = client.post("/jobs/", json={
-        "title": "Backend Engineer",
-        "company": "Facebook",
-        "location": "San Jose, CA",
-        "status": "applied",
-        "applied_date": "2025-09-26",
-        "job_description": "Backend job",
-        "resume_path": None,
-        "job_board_id": "88888",
-        "source": "LinkedIn"
-    })
-    job_id = create_resp.json()["id"]
-
-    # Delete
     response = client.delete(f"/jobs/{job_id}")
-    assert response.status_code == 200
-    data = response.json()
-    assert data["id"] == job_id
-
-    # Verify deleted
     get_resp = client.get(f"/jobs/{job_id}")
+
+    assert response.status_code == 200
+    assert response.json()["id"] == job_id
     assert get_resp.status_code == 404
 
-def test_search_jobs():
-    # Create multiple jobs
-    client.post("/jobs/", json={"title": "Backend Engineer", "company": "Google", "status": "applied", "location": "San Fransisco, CA", "applied_date": "2025-09-25", "job_description": "", "resume_path": None, "job_board_id": "111", "source": "LinkedIn"})
-    client.post("/jobs/", json={"title": "Frontend Engineer", "company": "Google", "status": "applied", "location": "Pittsburgh", "applied_date": "2025-09-25", "job_description": "", "resume_path": None, "job_board_id": "222", "source": "LinkedIn"})
-    client.post("/jobs/", json={"title": "DevOps Engineer I", "company": "Amazon", "status": "interview", "location": "Pittsburgh", "applied_date": "2025-09-26", "job_description": "", "resume_path": None, "job_board_id": "333", "source": "Indeed"})
-    client.post("/jobs/", json={"title": "DevOps Engineer II", "company": "Amazon", "status": "applied", "location": "Seattle, WA", "applied_date": "2025-09-26", "job_description": "", "resume_path": None, "job_board_id": "333", "source": "Indeed"})
 
-    # Search by company
-    response = client.get("/jobs/search?company=Google")
-    data = response.json()
-    print(data)
-    print(len(data))
-    assert len(data) == 2
+def test_delete_missing_job_returns_404(client):
+    response = client.delete("/jobs/999")
 
-    # Search by title
-    response = client.get("/jobs/search?title=DevOps")
-    data = response.json()
-    assert len(data) == 2
-    assert data[0]["company"] == "Amazon"
+    assert response.status_code == 404
+    assert response.json()["detail"] == "Job not found"
 
-    # Search by Status
-    response = client.get("/jobs/search?status=interview")
-    data = response.json()
-    assert len(data) == 1
-    assert data[0]["title"] == "DevOps Engineer I"
 
-    # Search by Location
-    response = client.get("/jobs/search?location=Pittsburgh&sort_desc=false")
-    data = response.json()
-    print(data)
-    assert len(data) == 2
-    assert data[0]["company"] == "Google"
+def test_search_jobs_filters_and_sorts_results(client):
+    client.post(
+        "/jobs/",
+        json=create_job_payload(
+            title="Backend Engineer",
+            company="Google",
+            location="San Francisco, CA",
+            status="Applied",
+            applied_date="2025-09-25",
+            job_board_id="google-1",
+        ),
+    )
+    client.post(
+        "/jobs/",
+        json=create_job_payload(
+            title="Frontend Engineer",
+            company="Google",
+            location="Pittsburgh",
+            status="Applied",
+            applied_date="2025-09-24",
+            job_board_id="google-2",
+        ),
+    )
+    client.post(
+        "/jobs/",
+        json=create_job_payload(
+            title="DevOps Engineer I",
+            company="Amazon",
+            location="Pittsburgh",
+            status="Interview",
+            applied_date="2025-09-26",
+            job_board_id="amazon-1",
+        ),
+    )
+    client.post(
+        "/jobs/",
+        json=create_job_payload(
+            title="DevOps Engineer II",
+            company="Amazon",
+            location="Seattle, WA",
+            status="Applied",
+            applied_date="2025-09-27",
+            job_board_id="amazon-2",
+        ),
+    )
 
-    # Search with pagination
-    response = client.get("/jobs/search?company=Google&skip=1&limit=1")
-    data = response.json()
-    assert len(data) == 1
+    company_response = client.get("/jobs/search?company=Google")
+    title_response = client.get("/jobs/search?title=DevOps")
+    status_response = client.get("/jobs/search?status=Interview")
+    location_response = client.get("/jobs/search?location=Pittsburgh&sort_desc=false")
+    paginated_response = client.get("/jobs/search?company=Google&skip=1&limit=1")
 
-def test_batch_jobs():
+    assert len(company_response.json()) == 2
+    assert len(title_response.json()) == 2
+    assert title_response.json()[0]["title"] == "DevOps Engineer II"
+    assert len(status_response.json()) == 1
+    assert status_response.json()[0]["title"] == "DevOps Engineer I"
+    assert [job["title"] for job in location_response.json()] == [
+        "Frontend Engineer",
+        "DevOps Engineer I",
+    ]
+    assert len(paginated_response.json()) == 1
 
-    old_data = client.get("/jobs/").json()
 
-    client.post("/jobs/batch", json=[
-        {"title": "Backend Engineer", "company": "Amazon", "status": "applied", "location": "San Fransisco, CA", "applied_date": "2025-09-29", "job_description": "", "resume_path": None, "job_board_id": None, "source": "LinkedIn"},
-        {"title": "Frontend Engineer", "company": "Microsoft", "status": "applied", "location": "Pittsburgh", "applied_date": "2025-09-29", "job_description": "", "resume_path": None, "job_board_id": None, "source": "LinkedIn"},
-        {"title": "DevOps Engineer I", "company": "Apple", "status": "interview", "location": "Pittsburgh", "applied_date": "2025-09-29", "job_description": "", "resume_path": None, "job_board_id": None, "source": "Indeed"},
-        {"title": "DevOps Engineer II", "company": "Apple", "status": "applied", "location": "Seattle, WA", "applied_date": "2025-09-29", "job_description": "", "resume_path": None, "job_board_id": None, "source": "Indeed"},
-    ])
+def test_search_jobs_rejects_invalid_sort_field(client):
+    response = client.get("/jobs/search?sort_by=not_a_field")
 
-    new_data = client.get("/jobs/").json()
-    assert len(new_data) == (len(old_data) + 4)
+    assert response.status_code == 400
+    assert response.json()["detail"] == "Invalid sort field: not_a_field"
 
+
+def test_batch_jobs_creates_all_records(client):
+    payload = [
+        create_job_payload(
+            title="Backend Engineer",
+            company="Amazon",
+            location="San Francisco, CA",
+            applied_date="2025-09-29",
+            job_board_id="batch-1",
+        ),
+        create_job_payload(
+            title="Frontend Engineer",
+            company="Microsoft",
+            location="Pittsburgh",
+            applied_date="2025-09-29",
+            job_board_id="batch-2",
+        ),
+        create_job_payload(
+            title="DevOps Engineer I",
+            company="Apple",
+            location="Pittsburgh",
+            status="Interview",
+            applied_date="2025-09-29",
+            job_board_id="batch-3",
+        ),
+        create_job_payload(
+            title="DevOps Engineer II",
+            company="Apple",
+            location="Seattle, WA",
+            applied_date="2025-09-29",
+            job_board_id="batch-4",
+        ),
+    ]
+
+    response = client.post("/jobs/batch", json=payload)
+    jobs = client.get("/jobs/")
+
+    assert response.status_code == 200
+    assert len(response.json()) == 4
+    assert len(jobs.json()) == 4
