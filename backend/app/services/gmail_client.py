@@ -1,15 +1,26 @@
 import json
 import base64
-from typing import Any, Optional
+from typing import TYPE_CHECKING, Any, Optional, cast
 from pathlib import Path
 
+if TYPE_CHECKING:
+    from google.auth.transport.requests import Request as GoogleRequest
+    from google.oauth2.credentials import Credentials as GoogleCredentials
+    from google_auth_oauthlib.flow import Flow as GoogleFlow
+else:
+    GoogleCredentials = Any
+    GoogleFlow = Any
+    GoogleRequest = Any
+
 try:
-    from google.oauth2.credentials import Credentials
-    from google_auth_oauthlib.flow import Flow
+    from google.oauth2.credentials import Credentials as RuntimeCredentials
+    from google.auth.transport.requests import Request as RuntimeRequest
+    from google_auth_oauthlib.flow import Flow as RuntimeFlow
     from googleapiclient.discovery import build as google_build
 except ModuleNotFoundError:  # pragma: no cover - handled at runtime when Gmail features are used
-    Credentials = Any  # type: ignore[assignment]
-    Flow = Any  # type: ignore[assignment]
+    RuntimeCredentials = None
+    RuntimeRequest = None
+    RuntimeFlow = None
     google_build = None
 
 # Paths
@@ -55,17 +66,61 @@ def _require_google_client() -> None:
         )
 
 
-def _build_gmail_service(creds: Credentials) -> Any:
+def _credentials_class() -> type[GoogleCredentials]:
+    _require_google_client()
+    assert RuntimeCredentials is not None
+    return RuntimeCredentials
+
+
+def _request_class() -> type[GoogleRequest]:
+    _require_google_client()
+    assert RuntimeRequest is not None
+    return RuntimeRequest
+
+
+def _flow_class() -> type[GoogleFlow]:
+    _require_google_client()
+    assert RuntimeFlow is not None
+    return RuntimeFlow
+
+
+def _build_gmail_service(creds: GoogleCredentials) -> Any:
     _require_google_client()
     assert google_build is not None
     return google_build("gmail", "v1", credentials=creds)
 
 
-def make_auth_flow(redirect_uri: str) -> Flow:
-    _require_google_client()
+def _load_client_config() -> dict[str, Any]:
     if not CREDENTIALS_PATH.exists():
         raise FileNotFoundError("Put your credentials.json at backend/credentials/credentials.json")
-    return Flow.from_client_secrets_file(
+    return json.loads(CREDENTIALS_PATH.read_text())
+
+
+def get_configured_redirect_uris() -> list[str]:
+    config = _load_client_config()
+    oauth_config = config.get("web") or config.get("installed") or {}
+    redirect_uris = oauth_config.get("redirect_uris", [])
+    return [uri for uri in redirect_uris if isinstance(uri, str)]
+
+
+def resolve_redirect_uri(preferred_redirect_uri: str) -> str:
+    redirect_uris = get_configured_redirect_uris()
+    if not redirect_uris:
+        return preferred_redirect_uri
+    if preferred_redirect_uri in redirect_uris:
+        return preferred_redirect_uri
+    return redirect_uris[0]
+
+
+def _save_credentials(creds: GoogleCredentials) -> None:
+    TOKEN_PATH.parent.mkdir(parents=True, exist_ok=True)
+    TOKEN_PATH.write_text(creds.to_json())
+
+
+def make_auth_flow(redirect_uri: str) -> GoogleFlow:
+    _require_google_client()
+    redirect_uri = resolve_redirect_uri(redirect_uri)
+    return _flow_class().from_client_secrets_file(
         str(CREDENTIALS_PATH),
         scopes=SCOPES,
         redirect_uri=redirect_uri
@@ -81,25 +136,39 @@ def get_authorize_url(redirect_uri: str) -> str:
 def exchange_code_and_save_tokens(code: str, redirect_uri: str) -> dict[str, Any]:
     flow = make_auth_flow(redirect_uri)
     flow.fetch_token(code=code)
-    creds = flow.credentials
-    TOKEN_PATH.parent.mkdir(parents=True, exist_ok=True)
-    with open(TOKEN_PATH, "w") as f:
-        f.write(creds.to_json())
+    creds = cast(GoogleCredentials, flow.credentials)
+    _save_credentials(creds)
     return json.loads(creds.to_json())
 
+
+def refresh_credentials_if_needed(creds: GoogleCredentials) -> GoogleCredentials:
+    if not getattr(creds, "expired", False):
+        return creds
+    if not getattr(creds, "refresh_token", None):
+        raise RuntimeError("Stored Gmail credentials are expired and cannot be refreshed.")
+    creds.refresh(_request_class()())
+    _save_credentials(creds)
+    return creds
+
+
+def get_valid_credentials() -> GoogleCredentials:
+    creds = load_credentials()
+    if creds is None:
+        raise RuntimeError("No credentials. Authorize first.")
+    return refresh_credentials_if_needed(creds)
+
+
 # Load stored credentials
-def load_credentials() -> Optional[Credentials]:
+def load_credentials() -> Optional[GoogleCredentials]:
     if not TOKEN_PATH.exists():
         return None
     data = json.loads(TOKEN_PATH.read_text())
-    creds = Credentials.from_authorized_user_info(data, SCOPES)
+    creds = _credentials_class().from_authorized_user_info(data, SCOPES)
     return creds
 
 # Fetch messages list using Gmail API with a query (q param is Gmail search query)
 def list_message_ids(q: str = "", max_results: int = 50) -> list[str]:
-    creds = load_credentials()
-    if creds is None:
-        raise RuntimeError("No credentials. Authorize first.")
+    creds = get_valid_credentials()
     service = _build_gmail_service(creds)
     res = service.users().messages().list(userId="me", q=q, maxResults=max_results).execute()
     messages = res.get("messages", [])
@@ -107,9 +176,7 @@ def list_message_ids(q: str = "", max_results: int = 50) -> list[str]:
 
 # Fetch full message by id and return parsed bodies/snippet/headers
 def get_message(msg_id: str) -> dict[str, Any]:
-    creds = load_credentials()
-    if creds is None:
-        raise RuntimeError("No credentials. Authorize first.")
+    creds = get_valid_credentials()
     service = _build_gmail_service(creds)
     msg = service.users().messages().get(userId="me", id=msg_id, format="full").execute()
     return msg
@@ -159,16 +226,18 @@ def is_job_application_email(msg: dict[str, Any]) -> bool:
     content = f"{subject} {body}".lower()
     if any(p in content for p in CONFIRMATION_PHRASES):
         return True
+    if any(p in content for p in UPDATE_PHRASES):
+        return True
     
     return False
 
 
 # High-level: fetch email-job candidates via query and return parsed list
-def fetch_job_applications_from_gmail(query: str , max_results: int) -> list[dict[str, str]]:
+def fetch_job_applications_from_gmail(query: str, max_results: int) -> list[dict[str, str]]:
     ids = list_message_ids(q=query, max_results=max_results)
-    candidates = []
-    for id_ in ids:
-        msg = get_message(id_)
-        if(is_job_application_email(msg)):
+    candidates: list[dict[str, str]] = []
+    for msg_id in ids:
+        msg = get_message(msg_id)
+        if is_job_application_email(msg):
             candidates.extend(parse_job_candidates_from_message(msg))
     return candidates

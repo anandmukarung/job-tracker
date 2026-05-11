@@ -3,10 +3,17 @@ from ..services.gmail_client import (
     get_authorize_url,
     exchange_code_and_save_tokens,
     fetch_job_applications_from_gmail,
+    get_valid_credentials,
     load_credentials,
+    resolve_redirect_uri,
 )
 
 router = APIRouter(prefix="/gmail", tags=["Gmail"])
+callback_router = APIRouter(tags=["Gmail"])
+
+
+def _gmail_redirect_uri(request: Request) -> str:
+    return resolve_redirect_uri(str(request.url_for("gmail_callback")))
 
 # Generate authorization URL
 @router.get("/auth/url")
@@ -14,7 +21,7 @@ def get_auth_url(request: Request):
     """
     Generates a Google OAuth URL for the user to grant Gmail access.
     """
-    redirect_uri = str(request.url_for("gmail_callback"))
+    redirect_uri = _gmail_redirect_uri(request)
     try:
         url = get_authorize_url(redirect_uri)
         return {"auth_url": url}
@@ -22,19 +29,28 @@ def get_auth_url(request: Request):
         raise HTTPException(status_code=500, detail=str(e))
 
 
-# Callback endpoint for OAuth
-@router.get("/auth/callback", name="gmail_callback")
-def gmail_callback(request: Request, code: str):
+def _handle_gmail_callback(request: Request, code: str):
     """
     Handles OAuth callback after the user authorizes the app.
     Exchanges code for token and saves credentials.json.
     """
-    redirect_uri = str(request.url_for("gmail_callback"))
+    redirect_uri = _gmail_redirect_uri(request)
     try:
         creds = exchange_code_and_save_tokens(code, redirect_uri)
         return {"message": "Authorization successful!", "credentials": creds}
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"OAuth failed: {str(e)}")
+
+
+# Callback endpoint for OAuth
+@router.get("/auth/callback", name="gmail_callback")
+def gmail_callback(request: Request, code: str):
+    return _handle_gmail_callback(request, code)
+
+
+@callback_router.get("/external/auth/callback")
+def gmail_callback_alias(request: Request, code: str):
+    return _handle_gmail_callback(request, code)
 
 
 # Check connection status
@@ -46,7 +62,16 @@ def gmail_status():
     creds = load_credentials()
     if creds is None:
         return {"authorized": False, "message": "No credentials found."}
-    return {"authorized": True, "token_expired": not creds.valid}
+    try:
+        valid_creds = get_valid_credentials()
+    except Exception as exc:
+        return {
+            "authorized": False,
+            "message": "Stored Gmail credentials need to be re-authorized.",
+            "requires_reauth": True,
+            "detail": str(exc),
+        }
+    return {"authorized": True, "token_expired": not valid_creds.valid}
 
 
 # Fetch job candidates

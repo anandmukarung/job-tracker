@@ -20,8 +20,8 @@ app.add_middleware(
 #Register Routers
 app.include_router(jobs.router)
 app.include_router(gmail.router)
+app.include_router(gmail.callback_router)
 
 @app.get("/")
 def root():
     return {"message": "Job Tracker API is running with DB!"}
-
