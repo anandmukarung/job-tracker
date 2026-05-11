@@ -4,7 +4,7 @@ from typing import Optional
 from ..models import models
 from ..schemas import schemas
 
-def create_job(db: Session, job: schemas.JobCreate):
+def create_job(db: Session, job: schemas.JobCreate) -> models.Job:
     #Check for duplicate job posting
     if job.job_board_id and job.company:
         existing_job = db.query(models.Job).filter(
@@ -35,13 +35,15 @@ def create_job(db: Session, job: schemas.JobCreate):
     db.refresh(db_job)
     return db_job
 
-def get_job_by_id(db: Session, job_id: int):
+def get_job_by_id(db: Session, job_id: int) -> Optional[models.Job]:
     return db.query(models.Job).filter(models.Job.id == job_id).first()
 
-def get_jobs(db: Session, skip: int = 0, limit: int = 100):
+def get_jobs(db: Session, skip: int = 0, limit: int = 100) -> list[models.Job]:
     return db.query(models.Job).offset(skip).limit(limit).all()
 
-def update_job(db: Session, job_id: int, job_update: schemas.JobUpdate):
+def update_job(
+    db: Session, job_id: int, job_update: schemas.JobUpdate
+) -> Optional[models.Job]:
     db_job = db.query(models.Job).filter(models.Job.id == job_id).first()
     if not db_job:
         return None
@@ -53,7 +55,7 @@ def update_job(db: Session, job_id: int, job_update: schemas.JobUpdate):
     db.refresh(db_job)
     return db_job
 
-def delete_job(db: Session, job_id: int):
+def delete_job(db: Session, job_id: int) -> Optional[models.Job]:
     db_job = db.query(models.Job).filter(models.Job.id == job_id).first()
     if not db_job:
         return None
@@ -72,7 +74,7 @@ def get_jobs_by_filters(
     limit: int = 100,
     sort_by: str = "applied_date",
     sort_desc: bool = True
-): 
+) -> list[models.Job]:
     query = db.query(models.Job)
     if company:
         query = query.filter(models.Job.company.ilike(f"%{company}%"))
