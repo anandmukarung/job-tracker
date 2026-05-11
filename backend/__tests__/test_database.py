@@ -1,6 +1,9 @@
 from datetime import date
 
+from sqlalchemy import create_engine, inspect, text
+
 from backend.app.crud import crud
+from backend.app.db.database import ensure_sqlite_job_schema
 from backend.app.schemas import schemas
 
 
@@ -79,3 +82,41 @@ def test_get_jobs_by_filters_respects_sort_order(db_session):
     )
 
     assert [job.title for job in results] == ["Backend Engineer", "Frontend Engineer"]
+
+
+def test_ensure_sqlite_job_schema_adds_missing_gmail_columns(tmp_path) -> None:
+    engine = create_engine(f"sqlite:///{tmp_path / 'legacy_jobs.db'}")
+    with engine.begin() as connection:
+        connection.execute(
+            text(
+                """
+                CREATE TABLE jobs (
+                    id INTEGER NOT NULL PRIMARY KEY,
+                    title VARCHAR NOT NULL,
+                    company VARCHAR NOT NULL,
+                    location VARCHAR NOT NULL,
+                    status VARCHAR,
+                    applied_date DATE,
+                    follow_up_date DATE,
+                    job_link VARCHAR,
+                    job_description VARCHAR,
+                    resume_path VARCHAR,
+                    job_board_id VARCHAR,
+                    source VARCHAR,
+                    notes VARCHAR,
+                    created_at DATETIME,
+                    updated_at DATETIME
+                )
+                """
+            )
+        )
+
+    ensure_sqlite_job_schema(engine)
+
+    columns = {column["name"] for column in inspect(engine).get_columns("jobs")}
+
+    assert "gmail_thread_id" in columns
+    assert "ats_source" in columns
+    assert "ats_requisition_id" in columns
+    assert "ats_application_id" in columns
+    assert "ats_candidate_id" in columns

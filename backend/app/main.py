@@ -1,10 +1,11 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from .db.database import Base, engine
+from .db.database import Base, engine, ensure_sqlite_job_schema
 from .routers import jobs, gmail
 
 #Create database tables if not already created
 Base.metadata.create_all(bind=engine)
+ensure_sqlite_job_schema(engine)
 
 #Initialize app
 app = FastAPI(title="Job Applications Tracker API", version="1.0")

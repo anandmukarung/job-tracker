@@ -26,7 +26,12 @@ def create_job(db: Session, job: schemas.JobCreate) -> models.Job:
         resume_path=job.resume_path,
         job_board_id=job.job_board_id,
         source=job.source,
-        notes=job.notes
+        notes=job.notes,
+        gmail_thread_id=job.gmail_thread_id,
+        ats_source=job.ats_source,
+        ats_requisition_id=job.ats_requisition_id,
+        ats_application_id=job.ats_application_id,
+        ats_candidate_id=job.ats_candidate_id,
     )
     
     #Add to session and commit

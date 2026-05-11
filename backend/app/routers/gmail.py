@@ -1,4 +1,9 @@
-from fastapi import APIRouter, Request, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query, Request
+from sqlalchemy.orm import Session
+
+from ..crud import crud
+from ..db.database import get_db
+from ..schemas.schemas import GmailJobsReviewResponse
 from ..services.gmail_client import (
     get_authorize_url,
     exchange_code_and_save_tokens,
@@ -75,19 +80,25 @@ def gmail_status():
 
 
 # Fetch job candidates
-@router.get("/jobs")
+@router.get("/jobs", response_model=GmailJobsReviewResponse)
 def get_jobs_from_gmail(
     query: str = Query(
         "applied OR 'thank you for your application' newer_than:365d",
         description="Gmail search query to filter job-related emails",
     ),
-    max_results: int = Query(20, ge=1, le=200)
+    max_results: int = Query(20, ge=1, le=200),
+    db: Session = Depends(get_db),
 ):
     """
     Fetch job application emails and parse possible job candidates.
     """
     try:
-        jobs = fetch_job_applications_from_gmail(query=query, max_results=max_results)
+        existing_jobs = crud.get_jobs(db, skip=0, limit=1000)
+        jobs = fetch_job_applications_from_gmail(
+            query=query,
+            max_results=max_results,
+            existing_jobs=existing_jobs,
+        )
         return {"count": len(jobs), "jobs": jobs}
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to fetch Gmail jobs: {str(e)}")

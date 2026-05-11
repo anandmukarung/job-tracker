@@ -1,10 +1,10 @@
-import base64
 import json
 from pathlib import Path
 from typing import Optional
 
 import pytest
 
+from backend.app.schemas.schemas import GmailClassificationResult, GmailParsedMessageReview
 from backend.app.services import gmail_client
 
 
@@ -163,62 +163,57 @@ def test_get_message_uses_expected_gmail_arguments(monkeypatch: pytest.MonkeyPat
     assert gmail_client.get_message("abc") == message
 
 
-def test_is_job_application_email_matches_confirmation_and_update_phrases() -> None:
-    body = base64.urlsafe_b64encode(b"Thank you for applying").decode("utf-8")
-    confirmation_msg = {
-        "payload": {
-            "headers": [
-                {"name": "From", "value": "hiring@company.com"},
-                {"name": "Subject", "value": "Application received"},
-            ],
-            "body": {"data": body},
-        },
-        "snippet": "",
-    }
-    update_msg = {
-        "payload": {
-            "headers": [
-                {"name": "From", "value": "recruiter@company.com"},
-                {"name": "Subject", "value": "Interview update"},
-            ],
-            "body": {"data": ""},
-        },
-        "snippet": "",
-    }
+def test_fetch_job_applications_from_gmail_filters_irrelevant(monkeypatch: pytest.MonkeyPatch) -> None:
+    message_ids = ["keep", "skip"]
+    kept_message = {"id": "keep", "threadId": "thread-1"}
+    skipped_message = {"id": "skip", "threadId": "thread-2"}
 
-    assert gmail_client.is_job_application_email(confirmation_msg) is True
-    assert gmail_client.is_job_application_email(update_msg) is True
-
-
-def test_is_job_application_email_excludes_third_party_platforms() -> None:
-    msg = {
-        "payload": {
-            "headers": [
-                {"name": "From", "value": "jobs-noreply@linkedin.com"},
-                {"name": "Subject", "value": "Thank you for applying"},
-            ],
-            "body": {"data": ""},
-        },
-        "snippet": "",
-    }
-
-    assert gmail_client.is_job_application_email(msg) is False
-
-
-def test_fetch_job_applications_from_gmail_filters_non_job_emails(monkeypatch: pytest.MonkeyPatch) -> None:
-    messages = {
-        "1": {"payload": {"headers": []}, "snippet": ""},
-        "2": {"payload": {"headers": []}, "snippet": ""},
-    }
-    monkeypatch.setattr(gmail_client, "list_message_ids", lambda q, max_results: ["1", "2"])
-    monkeypatch.setattr(gmail_client, "get_message", lambda msg_id: messages[msg_id])
-    monkeypatch.setattr(gmail_client, "is_job_application_email", lambda msg: msg is messages["1"])
+    monkeypatch.setattr(gmail_client, "list_message_ids", lambda q, max_results: message_ids)
     monkeypatch.setattr(
         gmail_client,
-        "parse_job_candidates_from_message",
-        lambda msg: [{"subject": "Matched", "from": "recruiter@company.com"}],
+        "get_message",
+        lambda msg_id: kept_message if msg_id == "keep" else skipped_message,
     )
 
-    jobs = gmail_client.fetch_job_applications_from_gmail("applied", 10)
+    def fake_parse(message: dict[str, object], existing_jobs: list[object]) -> GmailParsedMessageReview:
+        label = "NEW_APPLICATION" if message["id"] == "keep" else "IRRELEVANT"
+        return GmailParsedMessageReview.model_validate(
+            {
+                "gmail_message_id": message["id"],
+                "thread_id": message["threadId"],
+                "from": "jobs@example.com",
+                "subject": "Subject",
+                "date": None,
+                "source": "company_email",
+                "email_content": {
+                    "snippet": "snippet",
+                    "body_text": "body",
+                    "from_email": "jobs@example.com",
+                    "from_domain": "example.com",
+                },
+                "classification": GmailClassificationResult(
+                    label=label,
+                    confidence=0.9,
+                    reasons=["test_reason"],
+                ),
+                "job_draft": None,
+                "update_items": None,
+                "extraction_candidates": {
+                    "title": [],
+                    "company": [],
+                    "location": [],
+                    "identifiers": {
+                        "gmail_thread_id": [],
+                    },
+                },
+                "match_candidates": [],
+                "best_match": None,
+                "needs_review": True,
+            }
+        )
 
-    assert jobs == [{"subject": "Matched", "from": "recruiter@company.com"}]
+    monkeypatch.setattr(gmail_client, "parse_gmail_message", fake_parse)
+
+    results = gmail_client.fetch_job_applications_from_gmail("query", 5, existing_jobs=[])
+
+    assert [result.gmail_message_id for result in results] == ["keep"]

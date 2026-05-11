@@ -23,6 +23,11 @@ class Job(Base):
     job_board_id: Mapped[Optional[str]] = mapped_column(String, unique=True, nullable=True, index=True)
     source: Mapped[Optional[str]] = mapped_column(String, nullable=True)
     notes: Mapped[Optional[str]] = mapped_column(String, nullable=True)
+    gmail_thread_id: Mapped[Optional[str]] = mapped_column(String, nullable=True, index=True)
+    ats_source: Mapped[Optional[str]] = mapped_column(String, nullable=True, index=True)
+    ats_requisition_id: Mapped[Optional[str]] = mapped_column(String, nullable=True, index=True)
+    ats_application_id: Mapped[Optional[str]] = mapped_column(String, nullable=True, index=True)
+    ats_candidate_id: Mapped[Optional[str]] = mapped_column(String, nullable=True, index=True)
 
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
