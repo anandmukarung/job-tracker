@@ -1,6 +1,5 @@
-from fastapi import FastAPI, Depends, HTTPException
+from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from sqlalchemy.orm import Session
 from .db.database import Base, engine
 from .routers import jobs, gmail
 
@@ -25,5 +24,4 @@ app.include_router(gmail.router)
 @app.get("/")
 def root():
     return {"message": "Job Tracker API is running with DB!"}
-
 

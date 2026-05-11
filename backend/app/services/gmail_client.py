@@ -1,14 +1,16 @@
-import os
 import json
 import base64
-import re
-from typing import List, Dict, Optional
+from typing import Any, Optional
 from pathlib import Path
 
-from google.oauth2.credentials import Credentials
-from google_auth_oauthlib.flow import Flow
-from googleapiclient.discovery import build
-from googleapiclient.errors import HttpError
+try:
+    from google.oauth2.credentials import Credentials
+    from google_auth_oauthlib.flow import Flow
+    from googleapiclient.discovery import build as google_build
+except ModuleNotFoundError:  # pragma: no cover - handled at runtime when Gmail features are used
+    Credentials = Any  # type: ignore[assignment]
+    Flow = Any  # type: ignore[assignment]
+    google_build = None
 
 # Paths
 BASE_DIR = Path(__file__).resolve().parents[1]
@@ -46,7 +48,21 @@ def is_third_party_platform(from_email: str) -> bool:
     return any(domain in from_email.lower() for domain in ["linkedin", "indeed", "glassdoor"])
 
 # Helper: create OAuth flow (used to generate consent URL)
+def _require_google_client() -> None:
+    if google_build is None:
+        raise RuntimeError(
+            "Google API dependencies are not installed. Install requirements.txt to use Gmail features."
+        )
+
+
+def _build_gmail_service(creds: Credentials) -> Any:
+    _require_google_client()
+    assert google_build is not None
+    return google_build("gmail", "v1", credentials=creds)
+
+
 def make_auth_flow(redirect_uri: str) -> Flow:
+    _require_google_client()
     if not CREDENTIALS_PATH.exists():
         raise FileNotFoundError("Put your credentials.json at backend/credentials/credentials.json")
     return Flow.from_client_secrets_file(
@@ -62,7 +78,7 @@ def get_authorize_url(redirect_uri: str) -> str:
     return auth_url
 
 # Exchange code for tokens and save them
-def exchange_code_and_save_tokens(code: str, redirect_uri: str) -> Dict:
+def exchange_code_and_save_tokens(code: str, redirect_uri: str) -> dict[str, Any]:
     flow = make_auth_flow(redirect_uri)
     flow.fetch_token(code=code)
     creds = flow.credentials
@@ -80,27 +96,26 @@ def load_credentials() -> Optional[Credentials]:
     return creds
 
 # Fetch messages list using Gmail API with a query (q param is Gmail search query)
-def list_message_ids(q: str = "", max_results: int = 50) -> List[str]:
+def list_message_ids(q: str = "", max_results: int = 50) -> list[str]:
     creds = load_credentials()
     if creds is None:
         raise RuntimeError("No credentials. Authorize first.")
-    try:
-        service = build('gmail', 'v1', credentials=creds)
-        res = service.users().messages().list(userId="me", q=q, maxResults=max_results).execute()
-        messages = res.get("messages", [])
-        return [m["id"] for m in messages]
-    except HttpError as e:
-        raise
+    service = _build_gmail_service(creds)
+    res = service.users().messages().list(userId="me", q=q, maxResults=max_results).execute()
+    messages = res.get("messages", [])
+    return [m["id"] for m in messages]
 
 # Fetch full message by id and return parsed bodies/snippet/headers
-def get_message(msg_id: str) -> Dict:
+def get_message(msg_id: str) -> dict[str, Any]:
     creds = load_credentials()
-    service = build('gmail', 'v1', credentials=creds)
+    if creds is None:
+        raise RuntimeError("No credentials. Authorize first.")
+    service = _build_gmail_service(creds)
     msg = service.users().messages().get(userId="me", id=msg_id, format="full").execute()
     return msg
 
 # Helper: extract readable text/html body from message payload
-def _get_message_body_parts(payload):
+def _get_message_body_parts(payload: dict[str, Any]) -> str:
     if payload.get("parts"):
         for part in payload["parts"]:
             mime = part.get("mimeType", "")
@@ -121,7 +136,7 @@ def _get_message_body_parts(payload):
     return ""
 
 # Parse a message to extract possible job entries
-def parse_job_candidates_from_message(msg: Dict) -> List[Dict]:
+def parse_job_candidates_from_message(msg: dict[str, Any]) -> list[dict[str, str]]:
     # Subject & snippet
     headers = {h["name"].lower(): h["value"] for h in msg.get("payload", {}).get("headers", [])}
     from_email = headers.get("from", "")
@@ -130,7 +145,7 @@ def parse_job_candidates_from_message(msg: Dict) -> List[Dict]:
     result = [{"from": from_email, "subject": subject }]
     return result
 
-def is_job_application_email(msg: Dict) -> bool:
+def is_job_application_email(msg: dict[str, Any]) -> bool:
     payload = msg.get("payload", {})
     headers = {h["name"].lower(): h["value"] for h in payload.get("headers", [])}
     from_email = headers.get("from", "")
@@ -149,7 +164,7 @@ def is_job_application_email(msg: Dict) -> bool:
 
 
 # High-level: fetch email-job candidates via query and return parsed list
-def fetch_job_applications_from_gmail(query: str , max_results: int) -> List[Dict]:
+def fetch_job_applications_from_gmail(query: str , max_results: int) -> list[dict[str, str]]:
     ids = list_message_ids(q=query, max_results=max_results)
     candidates = []
     for id_ in ids:

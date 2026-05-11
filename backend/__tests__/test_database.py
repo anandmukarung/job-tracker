@@ -1,3 +1,5 @@
+from datetime import date
+
 from backend.app.crud import crud
 from backend.app.schemas import schemas
 
@@ -53,7 +55,7 @@ def test_get_jobs_by_filters_respects_sort_order(db_session):
             company="Google",
             location="San Francisco, CA",
             status="Applied",
-            applied_date="2025-09-25",
+            applied_date=date(2025, 9, 25),
             job_board_id="g-1",
         ),
         schemas.JobCreate(
@@ -61,7 +63,7 @@ def test_get_jobs_by_filters_respects_sort_order(db_session):
             company="Google",
             location="Pittsburgh",
             status="Interview",
-            applied_date="2025-09-27",
+            applied_date=date(2025, 9, 27),
             job_board_id="g-2",
         ),
     ]

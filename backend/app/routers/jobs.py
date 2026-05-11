@@ -1,5 +1,6 @@
 from fastapi import APIRouter, HTTPException, Depends
 from sqlalchemy.orm import Session
+from typing import Optional
 from ..db.database import get_db
 from ..crud import crud
 from ..schemas import schemas
@@ -21,10 +22,10 @@ def read_jobs(skip: int = 0, limit: int = 100, db: Session = Depends(get_db)):
 #Search job by criteria
 @router.get("/search", response_model=list[schemas.Job])
 def search_jobs(
-    company: str = None,  # type: ignore
-    title: str = None,  # type: ignore
-    location: str = None,  # type: ignore
-    status: str = None,  # type: ignore
+    company: Optional[str] = None,
+    title: Optional[str] = None,
+    location: Optional[str] = None,
+    status: Optional[str] = None,
     skip: int = 0,
     limit: int = 100,
     sort_by: str = "applied_date",

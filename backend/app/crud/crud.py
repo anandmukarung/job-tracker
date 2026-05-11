@@ -1,4 +1,5 @@
 from sqlalchemy.orm import Session
+from typing import Optional
 
 from ..models import models
 from ..schemas import schemas
@@ -63,10 +64,10 @@ def delete_job(db: Session, job_id: int):
 #Search job by company, title, location or status
 def get_jobs_by_filters(
     db: Session, 
-    company: str = None, # type: ignore
-    title: str = None, # type: ignore
-    location: str = None, # type: ignore
-    status: str = None, # type: ignore
+    company: Optional[str] = None,
+    title: Optional[str] = None,
+    location: Optional[str] = None,
+    status: Optional[str] = None,
     skip: int = 0,
     limit: int = 100,
     sort_by: str = "applied_date",
