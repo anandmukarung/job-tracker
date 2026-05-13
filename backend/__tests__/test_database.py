@@ -120,3 +120,66 @@ def test_ensure_sqlite_job_schema_adds_missing_gmail_columns(tmp_path) -> None:
     assert "ats_requisition_id" in columns
     assert "ats_application_id" in columns
     assert "ats_candidate_id" in columns
+
+
+def test_create_gmail_import_item_reuses_existing_message_id(db_session) -> None:
+    from backend.app.schemas.schemas import GmailParsedMessageReview
+
+    session = crud.create_gmail_import_session(
+        db_session,
+        start_date=date(2025, 1, 1),
+        end_date=date(2025, 1, 31),
+    )
+    review = GmailParsedMessageReview.model_validate(
+        {
+            "gmail_message_id": "gmail-duplicate",
+            "thread_id": "thread-duplicate",
+            "from": "recruiter@company.com",
+            "subject": "Application received",
+            "date": "2025-01-15T12:00:00Z",
+            "source": "company_email",
+            "email_content": {
+                "snippet": "Thank you for applying.",
+                "body_text": "Thank you for applying for the Backend Engineer position.",
+                "from_email": "recruiter@company.com",
+                "from_domain": "company.com",
+            },
+            "classification": {"label": "NEW_APPLICATION", "confidence": 0.9, "reasons": ["confirmation"]},
+            "job_draft": {
+                "title": "Backend Engineer",
+                "company": "Company",
+                "location": "Remote",
+                "applied_date": "2025-01-15",
+                "status": "Applied",
+                "source": "Gmail",
+            },
+            "update_items": None,
+            "extraction_candidates": {
+                "title": [],
+                "company": [],
+                "location": [],
+                "identifiers": {"gmail_thread_id": []},
+            },
+            "match_candidates": [],
+            "best_match": None,
+            "needs_review": True,
+        }
+    )
+
+    first = crud.create_gmail_import_item(
+        db_session,
+        session_id=session.id,
+        review=review,
+        selected_action="create",
+    )
+    second = crud.create_gmail_import_item(
+        db_session,
+        session_id=session.id,
+        review=review,
+        selected_action="create",
+    )
+
+    items = crud.get_gmail_import_items_by_message_ids(db_session, ["gmail-duplicate"])
+
+    assert second.id == first.id
+    assert len(items) == 1

@@ -148,6 +148,24 @@ def _get_message_headers(msg: dict[str, Any]) -> dict[str, str]:
     }
 
 
+def is_likely_job_email(msg: dict[str, Any]) -> bool:
+    headers = _get_message_headers(msg)
+    from_header = headers.get("from", "")
+    email_address = _extract_email_address(from_header)
+    from_domain = _domain_from_email(email_address)
+    subject = headers.get("subject", "") or ""
+    snippet = msg.get("snippet", "") or ""
+    content = _normalize_whitespace(f"{subject}\n{snippet}").lower()
+
+    if any(term in from_domain for term in THIRD_PARTY_PLATFORM_DOMAINS):
+        return False
+    if any(term in content for term in PROMO_TERMS):
+        return False
+    if "myworkday.com" in from_domain or "greenhouse" in from_domain or "lever" in from_domain:
+        return True
+    return any(term in content for term in JOB_CONTEXT_TERMS + NEW_APPLICATION_PHRASES + APPLICATION_UPDATE_PHRASES + BROADER_UPDATE_PHRASES + INTERVIEW_PHRASES + REJECTION_PHRASES + OFFER_PHRASES)
+
+
 def _extract_email_address(from_header: str) -> str:
     match = re.search(r"<([^>]+)>", from_header)
     return (match.group(1) if match else from_header).strip().lower()
@@ -406,7 +424,17 @@ def _extract_received_datetime(msg: dict[str, Any]) -> Optional[datetime]:
 
 
 def _domain_from_url(url: str) -> str:
-    return urlparse(url).netloc.lower()
+    try:
+        return urlparse(url).netloc.lower()
+    except ValueError:
+        return ""
+
+
+def _path_parts_from_url(url: str) -> list[str]:
+    try:
+        return [part for part in urlparse(url).path.split("/") if part]
+    except ValueError:
+        return []
 
 
 def _single_message_link(links: list[str]) -> Optional[str]:
@@ -581,15 +609,17 @@ def extract_company_candidates(features: dict[str, Any]) -> list[GmailCandidate]
 
     for link in features["links"]:
         domain = _domain_from_url(link)
+        if not domain:
+            continue
         if domain.endswith(".myworkday.com"):
             company = domain[: -len(".myworkday.com")].split(".")[-1]
             _add_candidate(candidates, company.replace("-", " ").replace("_", " ").title(), 0.84, "workday_link")
         elif "greenhouse.io" in domain:
-            path_parts = [part for part in urlparse(link).path.split("/") if part]
+            path_parts = _path_parts_from_url(link)
             if path_parts:
                 _add_candidate(candidates, path_parts[0].replace("-", " ").title(), 0.76, "greenhouse_link")
         elif "lever.co" in domain:
-            path_parts = [part for part in urlparse(link).path.split("/") if part]
+            path_parts = _path_parts_from_url(link)
             if path_parts:
                 _add_candidate(candidates, path_parts[0].replace("-", " ").title(), 0.76, "lever_link")
 
@@ -681,7 +711,11 @@ def _extract_identifier_value(
     identifiers: GmailIdentifierCandidates,
     field_name: str,
 ) -> Optional[str]:
-    return choose_best_candidate(getattr(identifiers, field_name)).value if getattr(identifiers, field_name) else None
+    candidates = getattr(identifiers, field_name)
+    if not candidates:
+        return None
+    best_candidate = choose_best_candidate(candidates)
+    return best_candidate.value if best_candidate is not None else None
 
 
 def score_match_candidate(

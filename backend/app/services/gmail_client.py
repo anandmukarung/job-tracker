@@ -1,4 +1,5 @@
 import json
+from datetime import date, timedelta
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, Optional, cast
 
@@ -100,12 +101,13 @@ def make_auth_flow(redirect_uri: str) -> GoogleFlow:
     )
 
 
-def get_authorize_url(redirect_uri: str) -> str:
+def get_authorize_url(redirect_uri: str, state: Optional[str] = None) -> str:
     flow = make_auth_flow(redirect_uri)
     auth_url, _ = flow.authorization_url(
         access_type="offline",
         include_granted_scopes="true",
         prompt="consent",
+        state=state,
     )
     return auth_url
 
@@ -142,18 +144,44 @@ def get_valid_credentials() -> GoogleCredentials:
     return refresh_credentials_if_needed(creds)
 
 
-def list_message_ids(q: str = "", max_results: int = 50) -> list[str]:
+def get_gmail_service() -> Any:
     creds = get_valid_credentials()
-    service = _build_gmail_service(creds)
+    return _build_gmail_service(creds)
+
+
+def list_message_ids_with_service(service: Any, q: str = "", max_results: int = 50) -> list[str]:
     response = service.users().messages().list(userId="me", q=q, maxResults=max_results).execute()
     messages = response.get("messages", [])
     return [message["id"] for message in messages]
 
 
-def get_message(msg_id: str) -> dict[str, Any]:
-    creds = get_valid_credentials()
-    service = _build_gmail_service(creds)
+def list_message_ids(q: str = "", max_results: int = 50) -> list[str]:
+    return list_message_ids_with_service(get_gmail_service(), q=q, max_results=max_results)
+
+
+def get_message_with_service(service: Any, msg_id: str) -> dict[str, Any]:
     return service.users().messages().get(userId="me", id=msg_id, format="full").execute()
+
+
+def get_message(msg_id: str) -> dict[str, Any]:
+    return get_message_with_service(get_gmail_service(), msg_id)
+
+
+def get_message_metadata_with_service(service: Any, msg_id: str) -> dict[str, Any]:
+    return service.users().messages().get(
+        userId="me",
+        id=msg_id,
+        format="metadata",
+        metadataHeaders=["From", "Subject"],
+    ).execute()
+
+
+def build_gmail_date_query(start_date: date, end_date: date) -> str:
+    inclusive_end = end_date + timedelta(days=1)
+    return (
+        "(application OR applied OR interview OR recruiter OR offer) "
+        f"after:{start_date.strftime('%Y/%m/%d')} before:{inclusive_end.strftime('%Y/%m/%d')}"
+    )
 
 
 def fetch_job_applications_from_gmail(
@@ -186,5 +214,6 @@ def fetch_job_applications_from_gmail(
             continue
         jobs.append(parsed)
 
+    jobs.sort(key=lambda item: item.date or 0, reverse=True)
     print(f"[gmail] final extracted listings count={len(jobs)}")
     return jobs

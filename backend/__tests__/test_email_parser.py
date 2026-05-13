@@ -297,6 +297,24 @@ def test_irrelevant_email_returns_no_job_draft() -> None:
     assert parsed.update_items is None
 
 
+def test_malformed_ipv6_style_url_does_not_crash_parsing() -> None:
+    msg = make_message(
+        from_value="noreply@acme.myworkday.com",
+        subject="Application received",
+        body=(
+            "Thank you for applying for the Backend Engineer position at Acme. "
+            "Review here https://[oops/jobs and continue."
+        ),
+        snippet="Thank you for applying for the Backend Engineer position at Acme.",
+    )
+
+    parsed = parse_gmail_message(msg)
+
+    assert parsed.classification.label == "NEW_APPLICATION"
+    assert parsed.job_draft is not None
+    assert parsed.job_draft.company == "Acme"
+
+
 def test_parse_gmail_message_output_shape_is_stable() -> None:
     parsed = parse_gmail_message(
         make_message(
@@ -308,6 +326,7 @@ def test_parse_gmail_message_output_shape_is_stable() -> None:
     dumped = parsed.model_dump(by_alias=True)
 
     assert set(dumped) == {
+        "already_processed",
         "gmail_message_id",
         "thread_id",
         "from",
@@ -321,6 +340,10 @@ def test_parse_gmail_message_output_shape_is_stable() -> None:
         "extraction_candidates",
         "match_candidates",
         "best_match",
+        "import_item_id",
+        "import_status",
+        "selected_action",
+        "linked_job_id",
         "needs_review",
     }
 

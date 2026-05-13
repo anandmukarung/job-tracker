@@ -1,6 +1,6 @@
 import json
 from pathlib import Path
-from typing import Optional
+from typing import Optional, cast
 
 import pytest
 
@@ -86,7 +86,9 @@ def test_refresh_credentials_if_needed_refreshes_and_persists(
 
     creds = FakeCredentials(valid=False, expired=True)
 
-    refreshed = gmail_client.refresh_credentials_if_needed(creds)
+    refreshed = gmail_client.refresh_credentials_if_needed(
+        cast(gmail_client.GoogleCredentials, creds)
+    )
 
     assert refreshed is creds
     assert creds.refreshed is True
@@ -97,7 +99,9 @@ def test_refresh_credentials_if_needed_raises_without_refresh_token() -> None:
     creds = FakeCredentials(valid=False, expired=True, refresh_token=None)
 
     with pytest.raises(RuntimeError, match="cannot be refreshed"):
-        gmail_client.refresh_credentials_if_needed(creds)
+        gmail_client.refresh_credentials_if_needed(
+            cast(gmail_client.GoogleCredentials, creds)
+        )
 
 
 def test_get_valid_credentials_refreshes_loaded_credentials(monkeypatch: pytest.MonkeyPatch) -> None:

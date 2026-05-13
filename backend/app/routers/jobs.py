@@ -45,6 +45,26 @@ def search_jobs(
         sort_desc=sort_desc
     )
 
+
+@router.get("/companies", response_model=list[schemas.CompanySuggestion])
+def search_companies(
+    query: str = "",
+    limit: int = 10,
+    db: Session = Depends(get_db),
+):
+    companies = crud.search_company_suggestions(db, query=query, limit=limit)
+    return [{"company": company} for company in companies]
+
+
+@router.get("/postings", response_model=list[schemas.JobPostingSuggestion])
+def search_job_postings(
+    company: str,
+    query: Optional[str] = None,
+    limit: int = 20,
+    db: Session = Depends(get_db),
+):
+    return crud.search_job_postings(db, company=company, query=query, limit=limit)
+
 #Get single job
 @router.get("/{job_id}", response_model=schemas.Job)
 def read_job(job_id: int, db: Session = Depends(get_db)):

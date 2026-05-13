@@ -5,6 +5,7 @@ from pydantic import BaseModel, ConfigDict, Field
 
 
 class JobBase(BaseModel):
+    posting_id: Optional[int] = None
     title: str
     company: str
     location: str
@@ -56,6 +57,23 @@ class Job(JobBase):
     updated_at: datetime
 
 
+class JobPostingBase(BaseModel):
+    company: str
+    title: str
+    source: Optional[str] = None
+    notes: Optional[str] = None
+
+
+class JobPosting(JobPostingBase):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: int
+    normalized_company: str
+    normalized_title: str
+    created_at: datetime
+    updated_at: datetime
+
+
 GmailSource = Literal[
     "workday",
     "greenhouse",
@@ -75,6 +93,8 @@ GmailMessageClassification = Literal[
     "IRRELEVANT",
     "UNKNOWN",
 ]
+GmailImportAction = Literal["create", "update", "skip"]
+GmailImportStatus = Literal["pending", "imported", "skipped", "failed"]
 
 
 class GmailCandidate(BaseModel):
@@ -159,6 +179,11 @@ class GmailParsedMessageReview(BaseModel):
     extraction_candidates: GmailExtractionCandidates
     match_candidates: list[GmailMatchCandidate] = Field(default_factory=list)
     best_match: Optional[GmailMatchCandidate] = None
+    import_item_id: Optional[int] = None
+    import_status: Optional[GmailImportStatus] = None
+    selected_action: Optional[GmailImportAction] = None
+    linked_job_id: Optional[int] = None
+    already_processed: bool = False
     needs_review: bool = True
 
     model_config = ConfigDict(populate_by_name=True)
@@ -167,3 +192,72 @@ class GmailParsedMessageReview(BaseModel):
 class GmailJobsReviewResponse(BaseModel):
     count: int
     jobs: list[GmailParsedMessageReview]
+
+
+class GmailImportSessionSummary(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: int
+    start_date: date
+    end_date: date
+    status: str
+    total_emails: int
+    new_items: int
+    cached_items: int
+    cache_hit: bool
+    imported_items: int
+    skipped_items: int
+    failed_items: int
+    error_message: Optional[str] = None
+    created_at: datetime
+    updated_at: datetime
+
+
+class GmailImportPreviewStartResponse(BaseModel):
+    session: GmailImportSessionSummary
+
+
+class GmailImportPreviewResponse(BaseModel):
+    session: GmailImportSessionSummary
+    count: int
+    jobs: list[GmailParsedMessageReview]
+
+
+class CompanySuggestion(BaseModel):
+    company: str
+
+
+class JobPostingSuggestion(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: int
+    company: str
+    title: str
+    normalized_company: str
+    normalized_title: str
+
+
+class GmailImportItemSelection(BaseModel):
+    gmail_message_id: str
+    action: GmailImportAction
+    target_job_id: Optional[int] = None
+    job_draft: Optional[GmailJobDraft] = None
+    update_items: Optional[GmailUpdateItems] = None
+
+
+class GmailImportCommitRequest(BaseModel):
+    session_id: int
+    items: list[GmailImportItemSelection]
+
+
+class GmailImportCommitResult(BaseModel):
+    gmail_message_id: str
+    action: GmailImportAction
+    status: GmailImportStatus
+    linked_job_id: Optional[int] = None
+    error: Optional[str] = None
+
+
+class GmailImportCommitResponse(BaseModel):
+    session: GmailImportSessionSummary
+    results: list[GmailImportCommitResult]
