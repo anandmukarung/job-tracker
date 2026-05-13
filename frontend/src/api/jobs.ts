@@ -1,5 +1,5 @@
 import { api } from "./client";
-import type { Job, JobCreate, JobUpdate } from "../types/job";
+import type { CompanySuggestion, Job, JobCreate, JobPostingSuggestion, JobUpdate } from "../types/job";
 
 // Get all jobs
 export async function listJobs(): Promise<Job[]> {
@@ -42,5 +42,19 @@ export async function searchJobs(params:{
 // Add multiple jobs
 export async function createJobsBatch(jobs: JobCreate[]) {
     const res = await api.post<Job[]>("/jobs/batch", jobs);
+    return res.data;
+}
+
+export async function searchCompanies(query: string): Promise<CompanySuggestion[]> {
+    const res = await api.get<CompanySuggestion[]>("/jobs/companies", {
+        params: { query },
+    });
+    return res.data;
+}
+
+export async function searchJobPostings(company: string, query = ""): Promise<JobPostingSuggestion[]> {
+    const res = await api.get<JobPostingSuggestion[]>("/jobs/postings", {
+        params: { company, query },
+    });
     return res.data;
 }

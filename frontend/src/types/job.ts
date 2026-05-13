@@ -2,6 +2,7 @@ export type JobStatus = "Applied" | "Interview" | "Offer" | "Rejected" | "Saved"
 
 export interface Job {
     id: number;
+    posting_id?: number | null;
     title: string;
     company: string;
     location: string;
@@ -20,3 +21,15 @@ export interface Job {
 
 export type JobCreate = Omit<Job, "id" | "created_at" | "updated_at">;
 export type JobUpdate = Partial<JobCreate>;
+
+export interface CompanySuggestion {
+    company: string;
+}
+
+export interface JobPostingSuggestion {
+    id: number;
+    company: string;
+    title: string;
+    normalized_company: string;
+    normalized_title: string;
+}

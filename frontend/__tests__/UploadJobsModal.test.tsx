@@ -24,11 +24,13 @@ describe("UploadJobsModal", () => {
     });
 
     test("shows an error when csv headers are missing required fields", async () => {
-        parseMock.mockImplementation((_file, config) => {
-            config.complete?.({
+        parseMock.mockImplementation((...args: unknown[]) => {
+            const config = args[1] as { complete?: (results: unknown, file?: unknown) => void } | undefined;
+            config?.complete?.({
                 data: [],
                 meta: { fields: ["title", "company"] },
             } as never);
+            return {} as never;
         });
 
         const { container } = render(<UploadJobsModal onClose={vi.fn()} onUploaded={vi.fn()} />);
@@ -51,11 +53,13 @@ describe("UploadJobsModal", () => {
             { title: "Software Engineer", company: "OpenAI", location: "Remote", status: "Applied" },
         ];
 
-        parseMock.mockImplementation((_file, config) => {
-            config.complete?.({
+        parseMock.mockImplementation((...args: unknown[]) => {
+            const config = args[1] as { complete?: (results: unknown, file?: unknown) => void } | undefined;
+            config?.complete?.({
                 data: jobs,
                 meta: { fields: ["title", "company", "location", "status"] },
             } as never);
+            return {} as never;
         });
         createJobsBatchMock.mockResolvedValue([]);
 

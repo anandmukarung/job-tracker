@@ -5,6 +5,7 @@ import Modal from "../components/Modal";
 import JobTable from "../components/JobTable";
 import JobForm from "../components/JobForm";
 import UploadJobsModal from "../components/UploadJobsModal";
+import GmailImportModal from "../components/GmailImportModal";
 
 
 export default function JobListPage() {
@@ -13,6 +14,7 @@ export default function JobListPage() {
     const [showModal, setShowModal] = useState(false);
     const [editingJob, setEditingJob] = useState<Job | null>(null);
     const [showUploadModal, setShowUploadModal] = useState(false);
+    const [showGmailImportModal, setShowGmailImportModal] = useState(false);
 
     // Load all jobs
     useEffect(() => {
@@ -43,6 +45,12 @@ export default function JobListPage() {
                     className="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700"
                 >                   
                     Upload File
+                </button>
+                <button
+                    onClick={() => setShowGmailImportModal(true)}
+                    className="bg-red-600 text-white px-4 py-2 rounded hover:bg-red-700"
+                >
+                    Import Gmail
                 </button>
             </div>
             {/* Modal with Job Form*/}
@@ -90,6 +98,15 @@ export default function JobListPage() {
                     <UploadJobsModal
                         onClose={() => setShowUploadModal(false)}
                         onUploaded={() => setRefreshKey((k) => k + 1)}
+                    />
+                </Modal>
+            )}
+            {showGmailImportModal && (
+                <Modal onClose={() => setShowGmailImportModal(false)}>
+                    <GmailImportModal
+                        jobs={jobs}
+                        onClose={() => setShowGmailImportModal(false)}
+                        onImported={() => setRefreshKey((k) => k + 1)}
                     />
                 </Modal>
             )}

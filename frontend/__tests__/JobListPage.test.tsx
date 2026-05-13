@@ -48,6 +48,22 @@ vi.mock("../src/components/UploadJobsModal", () => ({
     ),
 }));
 
+vi.mock("../src/components/GmailImportModal", () => ({
+    default: ({
+        onClose,
+        onImported,
+    }: {
+        onClose: () => void;
+        onImported: () => void;
+    }) => (
+        <div>
+            <p>Gmail import modal</p>
+            <button onClick={onImported}>finish gmail import</button>
+            <button onClick={onClose}>close gmail import</button>
+        </div>
+    ),
+}));
+
 vi.mock("../src/components/JobTable", () => ({
     default: ({
         jobs,
@@ -129,6 +145,23 @@ describe("JobListPage", () => {
         expect(screen.getByText("Upload jobs modal")).toBeInTheDocument();
 
         await userEvent.click(screen.getByRole("button", { name: /finish upload/i }));
+
+        await waitFor(() => {
+            expect(listJobsMock).toHaveBeenCalledTimes(2);
+        });
+    });
+
+    test("opens gmail import modal and refreshes after import completes", async () => {
+        render(<JobListPage />);
+
+        await waitFor(() => {
+            expect(listJobsMock).toHaveBeenCalledTimes(1);
+        });
+
+        await userEvent.click(screen.getByRole("button", { name: /import gmail/i }));
+        expect(screen.getByText("Gmail import modal")).toBeInTheDocument();
+
+        await userEvent.click(screen.getByRole("button", { name: /finish gmail import/i }));
 
         await waitFor(() => {
             expect(listJobsMock).toHaveBeenCalledTimes(2);

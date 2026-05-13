@@ -1,16 +1,10 @@
 import { useEffect, useState } from "react";
-import { deleteJob, listJobs } from "../api/jobs";
+import { listJobs } from "../api/jobs";
 import type { Job } from "../types/job";
-import JobForm from "../components/JobForm";
-import Modal from "../components/Modal";
-import JobTable from "../components/JobTable";
 import DashboardMetrics from "../components/DashboardMetrics";
 
 export default function Dashboard() {
   const [jobs, setJobs] = useState<Job[]>([]);
-  const [refreshKey, setRefreshKey] = useState(0);
-  const [showModal, setShowModal] = useState(false);
-  const [editingJob, setEditingJob] = useState<Job | null>(null);
 
   useEffect(() => {
     async function loadJobs() {
@@ -18,7 +12,7 @@ export default function Dashboard() {
       setJobs(data);
     }
     loadJobs();
-  }, [refreshKey]);
+  }, []);
 
   return (
     <div className="min-h-screen w-full bg-gray-50 p-4 overflow-visible">
